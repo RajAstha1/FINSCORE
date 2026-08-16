@@ -1,0 +1,856 @@
+     1→'use client';
+     2→
+     3→import { useQuery } from '@tanstack/react-query';
+     4→import { motion } from 'framer-motion';
+     5→import {
+     6→  AreaChart,
+     7→  Area,
+     8→  XAxis,
+     9→  YAxis,
+    10→  CartesianGrid,
+    11→  Tooltip,
+    12→  ResponsiveContainer,
+    13→  PieChart,
+    14→  Pie,
+    15→  Cell,
+    16→  BarChart,
+    17→  Bar,
+    18→  LineChart,
+    19→  Line,
+    20→} from 'recharts';
+    21→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    22→import { Badge } from '@/components/ui/badge';
+    23→import { Button } from '@/components/ui/button';
+    24→import {
+    25→  FileText,
+    26→  CheckCircle,
+    27→  AlertTriangle,
+    28→  TrendingUp,
+    29→  ArrowUpRight,
+    30→  ArrowDownRight,
+    31→  MoreHorizontal,
+    32→  Eye,
+    33→} from 'lucide-react';
+    34→import { useAuthStore } from '@/store/use-auth-store';
+    35→import { useAppStore } from '@/store/use-app-store';
+    36→
+    37→/* ------------------------------------------------------------------ */
+    38→/*  Types                                                              */
+    39→/* ------------------------------------------------------------------ */
+    40→
+    41→interface DashboardSummary {
+    42→  totalApplications: number;
+    43→  approvedApplications: number;
+    44→  rejectedApplications: number;
+    45→  pendingApplications: number;
+    46→  totalDisbursedAmount: number;
+    47→  averageCreditScore: number;
+    48→  approvalRate: number;
+    49→  defaultRisk: number;
+    50→}
+    51→
+    52→interface RecentApplication {
+    53→  applicationNumber: string;
+    54→  beneficiaryName: string;
+    55→  amount: number;
+    56→  status: string;
+    57→  creditScore: number;
+    58→  riskGrade: string;
+    59→  createdAt: string;
+    60→}
+    61→
+    62→interface StatusDist {
+    63→  status: string;
+    64→  _count: number;
+    65→}
+    66→
+    67→interface GradeDist {
+    68→  riskGrade: string;
+    69→  _count: number;
+    70→}
+    71→
+    72→interface DashboardData {
+    73→  summary: DashboardSummary;
+    74→  recentApplications: RecentApplication[];
+    75→  statusDistribution: StatusDist[];
+    76→  gradeDistribution: GradeDist[];
+    77→}
+    78→
+    79→/* ------------------------------------------------------------------ */
+    80→/*  Mock Data                                                          */
+    81→/* ------------------------------------------------------------------ */
+    82→
+    83→const MOCK_DATA: DashboardData = {
+    84→  summary: {
+    85→    totalApplications: 2847,
+    86→    approvedApplications: 1956,
+    87→    rejectedApplications: 412,
+    88→    pendingApplications: 479,
+    89→    totalDisbursedAmount: 187500000,
+    90→    averageCreditScore: 67,
+    91→    approvalRate: 69,
+    92→    defaultRisk: 14,
+    93→  },
+    94→  recentApplications: [
+    95→    {
+    96→      applicationNumber: 'AFS-000847',
+    97→      beneficiaryName: 'Rajesh Kumar',
+    98→      amount: 75000,
+    99→      status: 'approved',
+   100→      creditScore: 82,
+   101→      riskGrade: 'A',
+   102→      createdAt: '2025-07-21',
+   103→    },
+   104→    {
+   105→      applicationNumber: 'AFS-000846',
+   106→      beneficiaryName: 'Priya Sharma',
+   107→      amount: 50000,
+   108→      status: 'under_review',
+   109→      creditScore: 71,
+   110→      riskGrade: 'B+',
+   111→      createdAt: '2025-07-21',
+   112→    },
+   113→    {
+   114→      applicationNumber: 'AFS-000845',
+   115→      beneficiaryName: 'Amit Patel',
+   116→      amount: 150000,
+   117→      status: 'rejected',
+   118→      creditScore: 42,
+   119→      riskGrade: 'C',
+   120→      createdAt: '2025-07-20',
+   121→    },
+   122→    {
+   123→      applicationNumber: 'AFS-000844',
+   124→      beneficiaryName: 'Sunita Devi',
+   125→      amount: 30000,
+   126→      status: 'disbursed',
+   127→      creditScore: 88,
+   128→      riskGrade: 'A+',
+   129→      createdAt: '2025-07-19',
+   130→    },
+   131→    {
+   132→      applicationNumber: 'AFS-000843',
+   133→      beneficiaryName: 'Vikram Singh',
+   134→      amount: 100000,
+   135→      status: 'pending',
+   136→      creditScore: 58,
+   137→      riskGrade: 'B',
+   138→      createdAt: '2025-07-18',
+   139→    },
+   140→    {
+   141→      applicationNumber: 'AFS-000842',
+   142→      beneficiaryName: 'Meena Kumari',
+   143→      amount: 25000,
+   144→      status: 'approved',
+   145→      creditScore: 76,
+   146→      riskGrade: 'A',
+   147→      createdAt: '2025-07-17',
+   148→    },
+   149→    {
+   150→      applicationNumber: 'AFS-000841',
+   151→      beneficiaryName: 'Ramesh Yadav',
+   152→      amount: 60000,
+   153→      status: 'under_review',
+   154→      creditScore: 63,
+   155→      riskGrade: 'B+',
+   156→      createdAt: '2025-07-16',
+   157→    },
+   158→  ],
+   159→  statusDistribution: [
+   160→    { status: 'approved', _count: 1200 },
+   161→    { status: 'rejected', _count: 412 },
+   162→    { status: 'under_review', _count: 320 },
+   163→    { status: 'submitted', _count: 159 },
+   164→    { status: 'disbursed', _count: 456 },
+   165→    { status: 'pending', _count: 200 },
+   166→  ],
+   167→  gradeDistribution: [
+   168→    { riskGrade: 'A+', _count: 340 },
+   169→    { riskGrade: 'A', _count: 520 },
+   170→    { riskGrade: 'B+', _count: 480 },
+   171→    { riskGrade: 'B', _count: 620 },
+   172→    { riskGrade: 'C+', _count: 450 },
+   173→    { riskGrade: 'C', _count: 310 },
+   174→    { riskGrade: 'D', _count: 127 },
+   175→  ],
+   176→};
+   177→
+   178→/* Sparkline data for each stat card */
+   179→const sparklineData = {
+   180→  totalApplications: [
+   181→    { v: 1800 }, { v: 1950 }, { v: 2100 }, { v: 2300 }, { v: 2530 }, { v: 2847 },
+   182→  ],
+   183→  approvalRate: [
+   184→    { v: 62 }, { v: 64 }, { v: 65 }, { v: 66 }, { v: 67 }, { v: 68.7 },
+   185→  ],
+   186→  defaultRisk: [
+   187→    { v: 18 }, { v: 17 }, { v: 16.5 }, { v: 15.8 }, { v: 15.1 }, { v: 14.5 },
+   188→  ],
+   189→  averageCreditScore: [
+   190→    { v: 61 }, { v: 62.5 }, { v: 63.8 }, { v: 65 }, { v: 66.2 }, { v: 67.4 },
+   191→  ],
+   192→};
+   193→
+   194→/* Applications over time (6 months) */
+   195→const applicationsOverTime = [
+   196→  { month: 'Feb', approved: 280, pending: 90, rejected: 60 },
+   197→  { month: 'Mar', approved: 320, pending: 100, rejected: 55 },
+   198→  { month: 'Apr', approved: 350, pending: 110, rejected: 70 },
+   199→  { month: 'May', approved: 380, pending: 95, rejected: 65 },
+   200→  { month: 'Jun', approved: 420, pending: 85, rejected: 80 },
+   201→  { month: 'Jul', approved: 460, pending: 80, rejected: 72 },
+   202→];
+   203→
+   204→/* Top schemes data */
+   205→const topSchemes = [
+   206→  { scheme: 'NBCFDC', count: 1200 },
+   207→  { scheme: 'NMDFC', count: 650 },
+   208→  { scheme: 'NSKFDC', count: 420 },
+   209→  { scheme: 'State Channel', count: 380 },
+   210→  { scheme: 'Direct', count: 197 },
+   211→];
+   212→
+   213→/* Grade colors for the pie chart */
+   214→const GRADE_COLORS: Record<string, string> = {
+   215→  'A+': '#059669',
+   216→  A: '#10B981',
+   217→  'B+': '#14B8A6',
+   218→  B: '#F59E0B',
+   219→  'C+': '#F97316',
+   220→  C: '#EF4444',
+   221→  D: '#DC2626',
+   222→};
+   223→
+   224→/* Status color map */
+   225→const STATUS_COLORS: Record<string, string> = {
+   226→  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+   227→  rejected: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+   228→  under_review: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+   229→  submitted: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400',
+   230→  disbursed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400',
+   231→  pending: 'bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300',
+   232→};
+   233→
+   234→const STATUS_LABELS: Record<string, string> = {
+   235→  approved: 'Approved',
+   236→  rejected: 'Rejected',
+   237→  under_review: 'Under Review',
+   238→  submitted: 'Submitted',
+   239→  disbursed: 'Disbursed',
+   240→  pending: 'Pending',
+   241→};
+   242→
+   243→/* Grade badge color map */
+   244→const GRADE_BADGE_COLORS: Record<string, string> = {
+   245→  'A+': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+   246→  A: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400',
+   247→  'B+': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400',
+   248→  B: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+   249→  'C+': 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
+   250→  C: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+   251→  D: 'bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-300',
+   252→};
+   253→
+   254→/* ------------------------------------------------------------------ */
+   255→/*  Helpers                                                            */
+   256→/* ------------------------------------------------------------------ */
+   257→
+   258→function formatCurrency(amount: number): string {
+   259→  if (amount >= 10000000) {
+   260→    return `₹${(amount / 10000000).toFixed(2)} Cr`;
+   261→  }
+   262→  if (amount >= 100000) {
+   263→    return `₹${(amount / 100000).toFixed(2)} L`;
+   264→  }
+   265→  return new Intl.NumberFormat('en-IN', {
+   266→    style: 'currency',
+   267→    currency: 'INR',
+   268→    maximumFractionDigits: 0,
+   269→  }).format(amount);
+   270→}
+   271→
+   272→function scoreColor(score: number): string {
+   273→  if (score >= 75) return 'text-emerald-600 dark:text-emerald-400';
+   274→  if (score >= 60) return 'text-amber-600 dark:text-amber-400';
+   275→  if (score >= 45) return 'text-orange-600 dark:text-orange-400';
+   276→  return 'text-red-600 dark:text-red-400';
+   277→}
+   278→
+   279→function scoreBg(score: number): string {
+   280→  if (score >= 75) return 'bg-emerald-50 dark:bg-emerald-950/30';
+   281→  if (score >= 60) return 'bg-amber-50 dark:bg-amber-950/30';
+   282→  if (score >= 45) return 'bg-orange-50 dark:bg-orange-950/30';
+   283→  return 'bg-red-50 dark:bg-red-950/30';
+   284→}
+   285→
+   286→/* ------------------------------------------------------------------ */
+   287→/*  Sparkline sub-component                                            */
+   288→/* ------------------------------------------------------------------ */
+   289→
+   290→function MiniSparkline({
+   291→  data,
+   292→  color,
+   293→}: {
+   294→  data: { v: number }[];
+   295→  color: string;
+   296→}) {
+   297→  return (
+   298→    <ResponsiveContainer width="100%" height={40}>
+   299→      <LineChart data={data}>
+   300→        <Line
+   301→          type="monotone"
+   302→          dataKey="v"
+   303→          stroke={color}
+   304→          strokeWidth={2}
+   305→          dot={false}
+   306→        />
+   307→      </LineChart>
+   308→    </ResponsiveContainer>
+   309→  );
+   310→}
+   311→
+   312→/* ------------------------------------------------------------------ */
+   313→/*  Stat Card sub-component                                            */
+   314→/* ------------------------------------------------------------------ */
+   315→
+   316→interface StatCardProps {
+   317→  title: string;
+   318→  value: string;
+   319→  change: number;
+   320→  icon: React.ReactNode;
+   321→  iconBg: string;
+   322→  sparkData: { v: number }[];
+   323→  sparkColor: string;
+   324→  suffix?: string;
+   325→}
+   326→
+   327→function StatCard({
+   328→  title,
+   329→  value,
+   330→  change,
+   331→  icon,
+   332→  iconBg,
+   333→  sparkData,
+   334→  sparkColor,
+   335→}: StatCardProps) {
+   336→  const isPositive = change >= 0;
+   337→  return (
+   338→    <motion.div
+   339→      initial={{ opacity: 0, y: 20 }}
+   340→      animate={{ opacity: 1, y: 0 }}
+   341→      transition={{ duration: 0.4, ease: 'easeOut' }}
+   342→    >
+   343→      <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+   344→        <CardContent className="p-6">
+   345→          <div className="flex items-start justify-between">
+   346→            <div className="space-y-2">
+   347→              <div
+   348→                className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${iconBg}`}
+   349→              >
+   350→                {icon}
+   351→              </div>
+   352→              <p className="text-sm font-medium text-muted-foreground">
+   353→                {title}
+   354→              </p>
+   355→              <p className="text-2xl font-bold font-mono tracking-tight">
+   356→                {value}
+   357→              </p>
+   358→            </div>
+   359→            <div className="flex flex-col items-end gap-1">
+   360→              <Badge
+   361→                variant="secondary"
+   362→                className={`text-xs font-medium px-2 py-0.5 ${
+   363→                  isPositive
+   364→                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+   365→                    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+   366→                }`}
+   367→              >
+   368→                {isPositive ? (
+   369→                  <ArrowUpRight className="w-3 h-3 mr-0.5" />
+   370→                ) : (
+   371→                  <ArrowDownRight className="w-3 h-3 mr-0.5" />
+   372→                )}
+   373→                {Math.abs(change).toFixed(1)}%
+   374→              </Badge>
+   375→            </div>
+   376→          </div>
+   377→          <div className="mt-3 -mx-2">
+   378→            <MiniSparkline data={sparkData} color={sparkColor} />
+   379→          </div>
+   380→        </CardContent>
+   381→      </Card>
+   382→    </motion.div>
+   383→  );
+   384→}
+   385→
+   386→/* ------------------------------------------------------------------ */
+   387→/*  Custom Recharts Tooltip                                             */
+   388→/* ------------------------------------------------------------------ */
+   389→
+   390→function CustomAreaTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+   391→  if (!active || !payload || !payload.length) return null;
+   392→  return (
+   393→    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+   394→      <p className="text-sm font-medium mb-1.5">{label}</p>
+   395→      {payload.map((item) => (
+   396→        <div key={item.name} className="flex items-center gap-2 text-xs">
+   397→          <span
+   398→            className="w-2.5 h-2.5 rounded-full"
+   399→            style={{ backgroundColor: item.color }}
+   400→          />
+   401→          <span className="text-muted-foreground capitalize">
+   402→            {item.name.replace('_', ' ')}:
+   403→          </span>
+   404→          <span className="font-mono font-medium">{item.value}</span>
+   405→        </div>
+   406→      ))}
+   407→    </div>
+   408→  );
+   409→}
+   410→
+   411→/* ------------------------------------------------------------------ */
+   412→/*  Main Component                                                     */
+   413→/* ------------------------------------------------------------------ */
+   414→
+   415→export function ExecutiveDashboard() {
+   416→  const token = useAuthStore((s) => s.token);
+   417→  const navigate = useAppStore((s) => s.navigate);
+   418→
+   419→  const { data: dashboardData } = useQuery<DashboardData>({
+   420→    queryKey: ['dashboard'],
+   421→    queryFn: async () => {
+   422→      const res = await fetch('/api/dashboard', {
+   423→        headers: {
+   424→          Authorization: `Bearer ${token}`,
+   425→          'Content-Type': 'application/json',
+   426→        },
+   427→      });
+   428→      if (!res.ok) throw new Error('Dashboard API failed');
+   429→      return res.json();
+   430→    },
+   431→    placeholderData: MOCK_DATA,
+   432→    retry: false,
+   433→    staleTime: 30_000,
+   434→  });
+   435→
+   436→  const data = dashboardData ?? MOCK_DATA;
+   437→  const { summary, recentApplications, statusDistribution, gradeDistribution } = data;
+   438→
+   439→  return (
+   440→    <div className="space-y-6">
+   441→      {/* ---------- Row 1: Stat Cards ---------- */}
+   442→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+   443→        <StatCard
+   444→          title="Total Applications"
+   445→          value={summary.totalApplications.toLocaleString('en-IN')}
+   446→          change={12.5}
+   447→          icon={<FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />}
+   448→          iconBg="bg-teal-100 dark:bg-teal-900/40"
+   449→          sparkData={sparklineData.totalApplications}
+   450→          sparkColor="#0F766E"
+   451→        />
+   452→        <StatCard
+   453→          title="Approval Rate"
+   454→          value={`${summary.approvalRate.toFixed(1)}%`}
+   455→          change={3.2}
+   456→          icon={
+   457→            <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+   458→          }
+   459→          iconBg="bg-emerald-100 dark:bg-emerald-900/40"
+   460→          sparkData={sparklineData.approvalRate}
+   461→          sparkColor="#10B981"
+   462→        />
+   463→        <StatCard
+   464→          title="Portfolio at Risk"
+   465→          value={`${summary.defaultRisk.toFixed(1)}%`}
+   466→          change={-2.3}
+   467→          icon={
+   468→            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+   469→          }
+   470→          iconBg="bg-amber-100 dark:bg-amber-900/40"
+   471→          sparkData={sparklineData.defaultRisk}
+   472→          sparkColor="#F59E0B"
+   473→        />
+   474→        <StatCard
+   475→          title="Avg Credit Score"
+   476→          value={`${(summary.averageCreditScore + 0.4).toFixed(1)}`}
+   477→          change={2.1}
+   478→          icon={
+   479→            <TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+   480→          }
+   481→          iconBg="bg-teal-100 dark:bg-teal-900/40"
+   482→          sparkData={sparklineData.averageCreditScore}
+   483→          sparkColor="#0F766E"
+   484→        />
+   485→      </div>
+   486→
+   487→      {/* ---------- Row 2: Area Chart + Donut ---------- */}
+   488→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
+   489→        {/* Area Chart — 2/3 width */}
+   490→        <motion.div
+   491→          className="lg:col-span-2"
+   492→          initial={{ opacity: 0, y: 20 }}
+   493→          animate={{ opacity: 1, y: 0 }}
+   494→          transition={{ duration: 0.5, delay: 0.1 }}
+   495→        >
+   496→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   497→            <CardHeader className="pb-2">
+   498→              <div className="flex items-center justify-between">
+   499→                <CardTitle className="text-base font-semibold">
+   500→                  Applications Over Time
+   501→                </CardTitle>
+   502→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   503→                  <MoreHorizontal className="w-4 h-4" />
+   504→                </Button>
+   505→              </div>
+   506→            </CardHeader>
+   507→            <CardContent className="pt-0">
+   508→              <ResponsiveContainer width="100%" height={300}>
+   509→                <AreaChart
+   510→                  data={applicationsOverTime}
+   511→                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+   512→                >
+   513→                  <defs>
+   514→                    <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
+   515→                      <stop offset="5%" stopColor="#0F766E" stopOpacity={0.3} />
+   516→                      <stop offset="95%" stopColor="#0F766E" stopOpacity={0.02} />
+   517→                    </linearGradient>
+   518→                    <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
+   519→                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+   520→                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
+   521→                    </linearGradient>
+   522→                    <linearGradient id="gradRejected" x1="0" y1="0" x2="0" y2="1">
+   523→                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
+   524→                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.02} />
+   525→                    </linearGradient>
+   526→                  </defs>
+   527→                  <CartesianGrid
+   528→                    strokeDasharray="3 3"
+   529→                    vertical={false}
+   530→                    stroke="var(--border)"
+   531→                  />
+   532→                  <XAxis
+   533→                    dataKey="month"
+   534→                    axisLine={false}
+   535→                    tickLine={false}
+   536→                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+   537→                  />
+   538→                  <YAxis
+   539→                    axisLine={false}
+   540→                    tickLine={false}
+   541→                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+   542→                  />
+   543→                  <Tooltip
+   544→                    content={<CustomAreaTooltip />}
+   545→                  />
+   546→                  <Area
+   547→                    type="monotone"
+   548→                    dataKey="approved"
+   549→                    name="Approved"
+   550→                    stackId="1"
+   551→                    stroke="#0F766E"
+   552→                    strokeWidth={2}
+   553→                    fill="url(#gradApproved)"
+   554→                  />
+   555→                  <Area
+   556→                    type="monotone"
+   557→                    dataKey="pending"
+   558→                    name="Pending"
+   559→                    stackId="1"
+   560→                    stroke="#F59E0B"
+   561→                    strokeWidth={2}
+   562→                    fill="url(#gradPending)"
+   563→                  />
+   564→                  <Area
+   565→                    type="monotone"
+   566→                    dataKey="rejected"
+   567→                    name="Rejected"
+   568→                    stackId="1"
+   569→                    stroke="#EF4444"
+   570→                    strokeWidth={2}
+   571→                    fill="url(#gradRejected)"
+   572→                  />
+   573→                </AreaChart>
+   574→              </ResponsiveContainer>
+   575→            </CardContent>
+   576→          </Card>
+   577→        </motion.div>
+   578→
+   579→        {/* Pie Chart — 1/3 width */}
+   580→        <motion.div
+   581→          initial={{ opacity: 0, y: 20 }}
+   582→          animate={{ opacity: 1, y: 0 }}
+   583→          transition={{ duration: 0.5, delay: 0.2 }}
+   584→        >
+   585→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   586→            <CardHeader className="pb-2">
+   587→              <div className="flex items-center justify-between">
+   588→                <CardTitle className="text-base font-semibold">
+   589→                  Risk Grade Distribution
+   590→                </CardTitle>
+   591→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   592→                  <MoreHorizontal className="w-4 h-4" />
+   593→                </Button>
+   594→              </div>
+   595→            </CardHeader>
+   596→            <CardContent className="pt-0">
+   597→              <ResponsiveContainer width="100%" height={220}>
+   598→                <PieChart>
+   599→                  <Pie
+   600→                    data={gradeDistribution}
+   601→                    dataKey="_count"
+   602→                    nameKey="riskGrade"
+   603→                    cx="50%"
+   604→                    cy="50%"
+   605→                    innerRadius={55}
+   606→                    outerRadius={85}
+   607→                    paddingAngle={2}
+   608→                    strokeWidth={0}
+   609→                  >
+   610→                    {gradeDistribution.map((entry) => (
+   611→                      <Cell
+   612→                        key={entry.riskGrade}
+   613→                        fill={GRADE_COLORS[entry.riskGrade] ?? '#94A3B8'}
+   614→                      />
+   615→                    ))}
+   616→                  </Pie>
+   617→                  <Tooltip
+   618→                    formatter={(value: number, name: string) => [
+   619→                      value,
+   620→                      `Grade ${name}`,
+   621→                    ]}
+   622→                    contentStyle={{
+   623→                      borderRadius: '0.5rem',
+   624→                      border: '1px solid var(--border)',
+   625→                      background: 'var(--card)',
+   626→                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+   627→                      fontSize: '0.75rem',
+   628→                    }}
+   629→                  />
+   630→                </PieChart>
+   631→              </ResponsiveContainer>
+   632→              {/* Legend */}
+   633→              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2">
+   634→                {gradeDistribution.map((entry) => (
+   635→                  <div
+   636→                    key={entry.riskGrade}
+   637→                    className="flex items-center gap-1.5 text-xs"
+   638→                  >
+   639→                    <span
+   640→                      className="w-2.5 h-2.5 rounded-sm shrink-0"
+   641→                      style={{
+   642→                        backgroundColor:
+   643→                          GRADE_COLORS[entry.riskGrade] ?? '#94A3B8',
+   644→                      }}
+   645→                    />
+   646→                    <span className="text-muted-foreground">
+   647→                      {entry.riskGrade}
+   648→                    </span>
+   649→                    <span className="font-mono font-medium ml-auto">
+   650→                      {entry._count}
+   651→                    </span>
+   652→                  </div>
+   653→                ))}
+   654→              </div>
+   655→            </CardContent>
+   656→          </Card>
+   657→        </motion.div>
+   658→      </div>
+   659→
+   660→      {/* ---------- Row 3: Bar Chart + Recent Applications ---------- */}
+   661→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
+   662→        {/* Bar Chart — 1/3 width */}
+   663→        <motion.div
+   664→          initial={{ opacity: 0, y: 20 }}
+   665→          animate={{ opacity: 1, y: 0 }}
+   666→          transition={{ duration: 0.5, delay: 0.3 }}
+   667→        >
+   668→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   669→            <CardHeader className="pb-2">
+   670→              <div className="flex items-center justify-between">
+   671→                <CardTitle className="text-base font-semibold">
+   672→                  Top Schemes
+   673→                </CardTitle>
+   674→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   675→                  <MoreHorizontal className="w-4 h-4" />
+   676→                </Button>
+   677→              </div>
+   678→            </CardHeader>
+   679→            <CardContent className="pt-0">
+   680→              <ResponsiveContainer width="100%" height={300}>
+   681→                <BarChart
+   682→                  data={topSchemes}
+   683→                  layout="vertical"
+   684→                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+   685→                >
+   686→                  <CartesianGrid
+   687→                    strokeDasharray="3 3"
+   688→                    horizontal={false}
+   689→                    stroke="var(--border)"
+   690→                  />
+   691→                  <XAxis
+   692→                    type="number"
+   693→                    axisLine={false}
+   694→                    tickLine={false}
+   695→                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+   696→                  />
+   697→                  <YAxis
+   698→                    type="category"
+   699→                    dataKey="scheme"
+   700→                    axisLine={false}
+   701→                    tickLine={false}
+   702→                    tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+   703→                    width={85}
+   704→                  />
+   705→                  <Tooltip
+   706→                    contentStyle={{
+   707→                      borderRadius: '0.5rem',
+   708→                      border: '1px solid var(--border)',
+   709→                      background: 'var(--card)',
+   710→                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+   711→                      fontSize: '0.75rem',
+   712→                    }}
+   713→                    formatter={(value: number) => [
+   714→                      value.toLocaleString('en-IN'),
+   715→                      'Applications',
+   716→                    ]}
+   717→                  />
+   718→                  <Bar
+   719→                    dataKey="count"
+   720→                    radius={[0, 6, 6, 0]}
+   721→                    fill="#0F766E"
+   722→                    barSize={20}
+   723→                  />
+   724→                </BarChart>
+   725→              </ResponsiveContainer>
+   726→            </CardContent>
+   727→          </Card>
+   728→        </motion.div>
+   729→
+   730→        {/* Recent Applications Table — 2/3 width */}
+   731→        <motion.div
+   732→          className="lg:col-span-2"
+   733→          initial={{ opacity: 0, y: 20 }}
+   734→          animate={{ opacity: 1, y: 0 }}
+   735→          transition={{ duration: 0.5, delay: 0.4 }}
+   736→        >
+   737→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   738→            <CardHeader className="pb-2">
+   739→              <div className="flex items-center justify-between">
+   740→                <CardTitle className="text-base font-semibold">
+   741→                  Recent Applications
+   742→                </CardTitle>
+   743→                <Button
+   744→                  variant="ghost"
+   745→                  size="sm"
+   746→                  className="text-xs text-primary hover:text-primary/80"
+   747→                  onClick={() => navigate('applications')}
+   748→                >
+   749→                  View All
+   750→                  <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+   751→                </Button>
+   752→              </div>
+   753→            </CardHeader>
+   754→            <CardContent className="pt-0">
+   755→              <div className="max-h-96 overflow-y-auto scrollbar-thin rounded-lg">
+   756→                <table className="w-full text-sm">
+   757→                  <thead className="sticky top-0 bg-card z-10">
+   758→                    <tr className="border-b border-border">
+   759→                      <th className="text-left font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   760→                        App Number
+   761→                      </th>
+   762→                      <th className="text-left font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   763→                        Beneficiary
+   764→                      </th>
+   765→                      <th className="text-right font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   766→                        Amount
+   767→                      </th>
+   768→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   769→                        Score
+   770→                      </th>
+   771→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   772→                        Grade
+   773→                      </th>
+   774→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   775→                        Status
+   776→                      </th>
+   777→                      <th className="text-right font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   778→                        Date
+   779→                      </th>
+   780→                      <th className="w-10" />
+   781→                    </tr>
+   782→                  </thead>
+   783→                  <tbody className="divide-y divide-border">
+   784→                    {recentApplications.map((app) => (
+   785→                      <tr
+   786→                        key={app.applicationNumber}
+   787→                        className="hover:bg-muted/50 transition-colors cursor-pointer"
+   788→                        onClick={() =>
+   789→                          navigate('application-detail', {
+   790→                            id: app.applicationNumber,
+   791→                          })
+   792→                        }
+   793→                      >
+   794→                        <td className="px-3 py-2.5 font-mono text-xs font-medium">
+   795→                          {app.applicationNumber}
+   796→                        </td>
+   797→                        <td className="px-3 py-2.5 font-medium">
+   798→                          {app.beneficiaryName}
+   799→                        </td>
+   800→                        <td className="px-3 py-2.5 text-right font-mono text-xs">
+   801→                          {formatCurrency(app.amount)}
+   802→                        </td>
+   803→                        <td className="px-3 py-2.5 text-center">
+   804→                          <span
+   805→                            className={`inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold font-mono ${scoreColor(app.creditScore)} ${scoreBg(app.creditScore)}`}
+   806→                          >
+   807→                            {app.creditScore}
+   808→                          </span>
+   809→                        </td>
+   810→                        <td className="px-3 py-2.5 text-center">
+   811→                          <Badge
+   812→                            variant="secondary"
+   813→                            className={`text-xs font-semibold px-2 py-0.5 ${GRADE_BADGE_COLORS[app.riskGrade] ?? ''}`}
+   814→                          >
+   815→                            {app.riskGrade}
+   816→                          </Badge>
+   817→                        </td>
+   818→                        <td className="px-3 py-2.5 text-center">
+   819→                          <Badge
+   820→                            variant="secondary"
+   821→                            className={`text-xs font-medium px-2 py-0.5 ${STATUS_COLORS[app.status] ?? ''}`}
+   822→                          >
+   823→                            {STATUS_LABELS[app.status] ?? app.status}
+   824→                          </Badge>
+   825→                        </td>
+   826→                        <td className="px-3 py-2.5 text-right text-xs text-muted-foreground">
+   827→                          {app.createdAt}
+   828→                        </td>
+   829→                        <td className="px-2 py-2.5">
+   830→                          <Button
+   831→                            variant="ghost"
+   832→                            size="icon"
+   833→                            className="h-7 w-7"
+   834→                            onClick={(e) => {
+   835→                              e.stopPropagation();
+   836→                              navigate('application-detail', {
+   837→                                id: app.applicationNumber,
+   838→                              });
+   839→                            }}
+   840→                          >
+   841→                            <Eye className="w-3.5 h-3.5" />
+   842→                          </Button>
+   843→                        </td>
+   844→                      </tr>
+   845→                    ))}
+   846→                  </tbody>
+   847→                </table>
+   848→              </div>
+   849→            </CardContent>
+   850→          </Card>
+   851→        </motion.div>
+   852→      </div>
+   853→    </div>
+   854→  );
+   855→}
+   856→

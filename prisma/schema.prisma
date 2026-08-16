@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USER & AUTH ============
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          String    @default("analyst") // super_admin, analyst, partner, beneficiary, auditor
+  avatar        String?
+  phone         String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  totpSecret    String?   // For MFA
+  mfaEnabled    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  decisions     CreditDecision[]
+  overrides     ManualOverride[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String    @unique
+  refreshToken String?
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============ BENEFICIARY ============
+
+model Beneficiary {
+  id              String           @id @default(cuid())
+  aadhaarNumber   String?          @unique
+  aadhaarName     String?
+  panNumber       String?
+  dateOfBirth     DateTime?
+  gender          String?
+  category        String?          // SC, ST, OBC, General
+  state           String?
+  district        String?
+  pincode         String?
+  address         String?
+  phone           String?
+  email           String?
+  occupation      String?
+  annualIncome    Float?
+  monthlyIncome   Float?
+  educationLevel  String?
+  maritalStatus   String?
+  bankAccount     String?
+  bankName        String?
+  bankIfsc        String?
+  creditScore     Float?
+  riskGrade       String?          // A+, A, B+, B, C+, C, D
+  consentGiven    Boolean          @default(false)
+  consentDate     DateTime?
+  partnerId       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  partner         ChannelPartner?  @relation(fields: [partnerId], references: [id])
+  applications    LoanApplication[]
+  consumptions    ConsumptionData[]
+  documents       Document[]
+}
+
+// ============ CHANNEL PARTNER ============
+
+model ChannelPartner {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  type          String   // NGO, SHG, Bank, MFI
+  state         String?
+  district      String?
+  contactName   String?
+  contactPhone  String?
+  contactEmail  String?
+  isActive      Boolean  @default(true)
+  totalReferrals Int     @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  beneficiaries  Beneficiary[]
+}
+
+// ============ LOAN APPLICATION ============
+
+model LoanApplication {
+  id                String         @id @default(cuid())
+  applicationNumber String         @unique
+  beneficiaryId     String
+  loanAmount        Float
+  loanPurpose       String
+  loanTenure        Int            // months
+  interestRate      Float?
+  emiAmount         Float?
+  status            String         @default("draft") // draft, submitted, scoring, under_review, approved, rejected, sanctioned, disbursed, closed, defaulted
+  submittedAt       DateTime?
+  decisionAt        DateTime?
+  sanctionedAt      DateTime?
+  disbursedAt       DateTime?
+  closedAt          DateTime?
+  rejectionReason   String?
+  modelVersion      String?
+  channelPartnerId  String?
+  schemeType        String?        // NBCFDC, NMDFC, NSKFDC, etc.
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  beneficiary       Beneficiary    @relation(fields: [beneficiaryId], references: [id])
+  scores            CreditScore[]
+  decisions         CreditDecision[]
+  documents         Document[]
+  repayments        Repayment[]
+}
+
+// ============ CREDIT SCORING ============
+
+model CreditScore {
+  id                String   @id @default(cuid())
+  applicationId     String
+  totalScore        Float
+  confidenceScore   Float
+  riskGrade         String   // A+, A, B+, B, C+, C, D
+  modelVersion      String
+  xgboostScore      Float?
+  catboostScore     Float?
+  deepForestScore   Float?
+  repaymentScore    Float?
+  consumptionScore  Float?
+  featureWeights    String   // JSON string of feature weights
+  shapValues        String   // JSON string of SHAP values
+  scoredAt          DateTime @default(now())
+
+  application       LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model CreditDecision {
+  id                String   @id @default(cuid())
+  applicationId     String
+  decisionType      String   // auto_approve, manual_review, reject
+  decisionReason    String?
+  analystId         String?
+  approvedAmount    Float?
+  approvedTenure    Int?
+  approvedRate      Float?
+  conditions        String?  // JSON
+  createdAt         DateTime @default(now())
+
+  application       LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  analyst           User?         @relation(fields: [analystId], references: [id])
+  overrides         ManualOverride[]
+}
+
+model ManualOverride {
+  id              String   @id @default(cuid())
+  decisionId      String
+  analystId       String
+  originalGrade   String
+  newGrade        String
+  reason          String
+  createdAt       DateTime @default(now())
+
+  decision        CreditDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  analyst         User          @relation(fields: [analystId], references: [id])
+}
+
+// ============ DOCUMENTS ============
+
+model Document {
+  id             String   @id @default(cuid())
+  applicationId  String
+  beneficiaryId  String?
+  type           String   // aadhaar, pan, bank_statement, electricity_bill, income_proof, photo
+  fileName       String
+  fileUrl        String?
+  ocrData        String?  // JSON extracted text
+  ocrConfidence  Float?
+  status         String   @default("pending") // pending, verified, rejected
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  application    LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  beneficiary    Beneficiary?    @relation(fields: [beneficiaryId], references: [id])
+}
+
+// ============ CONSUMPTION DATA ============
+
+model ConsumptionData {
+  id              String   @id @default(cuid())
+  beneficiaryId   String
+  type            String   // electricity, mobile, dth, gas, water
+  provider        String?
+  accountId       String?
+  monthlySpend    Float?
+  paymentHistory  String   // JSON: array of payment records
+  consistency     Float?   // 0-1 payment consistency score
+  dataQuality     Float?   // 0-1 confidence in data
+  fetchedAt       DateTime @default(now())
+  period          String?  // e.g. "2024-01 to 2024-12"
+
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+}
+
+// ============ REPAYMENT ============
+
+model Repayment {
+  id              String   @id @default(cuid())
+  applicationId   String
+  emiNumber       Int
+  dueDate         DateTime
+  dueAmount       Float
+  paidAmount      Float?
+  paidDate        DateTime?
+  status          String   @default("pending") // pending, paid, overdue, default
+  daysOverdue     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  application     LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+// ============ AUDIT & GOVERNANCE ============
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   String?  // JSON
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model ModelPerformance {
+  id            String   @id @default(cuid())
+  modelVersion  String
+  metricName    String   // f1, precision, recall, auc_roc, accuracy
+  metricValue   Float
+  evaluatedAt   DateTime @default(now())
+  datasetSplit  String   @default("validation") // train, validation, test
+}
+
+model FairnessMetric {
+  id            String   @id @default(cuid())
+  modelVersion  String
+  protectedAttr String   // gender, category, state
+  metricName    String   // disparate_impact, equal_opportunity, demographic_parity
+  metricValue   Float
+  groupA        String
+  groupB        String
+  createdAt     DateTime @default(now())
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isEnabled   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DataRetention {
+  id          String   @id @default(cuid())
+  resourceType String
+  resourceId   String
+  retentionUntil DateTime
+  isAnonymized Boolean @default(false)
+  createdAt   DateTime @default(now())
+}
