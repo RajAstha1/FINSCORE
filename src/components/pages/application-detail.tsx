@@ -25,6 +25,7 @@ import {
   ArrowLeft, CheckCircle, Clock, XCircle, Brain, Shield, Zap,
   Activity, FileText, User, IndianRupee, AlertTriangle, Upload,
   Calendar, Hash, Phone, MapPin, Briefcase, CreditCard, Landmark,
+  ThumbsUp, ThumbsDown, Gavel, Ban, Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useAuthStore } from '@/store/use-auth-store';
@@ -247,6 +248,45 @@ export default function ApplicationDetailPage() {
 
   const isAnalyst = user?.role === 'analyst' || user?.role === 'super_admin';
 
+  const [approvalDecision, setApprovalDecision] = useState<'auto_approve' | 'reject' | ''>('');
+  const [approvalReason, setApprovalReason] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+
+  const canApprove = isAnalyst && (app?.status === 'submitted' || app?.status === 'under_review');
+
+  const handleApproval = async (decisionType: 'auto_approve' | 'reject') => {
+    if (!token || !id || !approvalReason.trim()) {
+      toast.error('Please provide a reason for your decision');
+      return;
+    }
+    setIsApproving(true);
+    try {
+      const res = await fetch(`/api/applications/${id}/decide`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decisionType,
+          decisionReason: approvalReason.trim(),
+          approvedAmount: decisionType === 'auto_approve' ? app.loanAmount : null,
+          approvedTenure: decisionType === 'auto_approve' ? app.loanTenure : null,
+          approvedRate: decisionType === 'auto_approve' ? (app.interestRate || 8.5) : null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Approval failed' }));
+        throw new Error(err.error || 'Approval failed');
+      }
+      toast.success(decisionType === 'auto_approve' ? 'Application approved successfully!' : 'Application rejected.');
+      setApprovalDecision('');
+      setApprovalReason('');
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Approval failed');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -303,6 +343,160 @@ export default function ApplicationDetailPage() {
 
         {/* ──────── OVERVIEW TAB ──────── */}
         <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+          {/* Admin Approval Panel — shown for submitted/under_review apps when user is analyst */}
+          {canApprove && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Card className="border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Gavel className="size-5 text-amber-600 dark:text-amber-400" />
+                    Admin Approval Required
+                  </CardTitle>
+                  <CardDescription>
+                    This application is awaiting your review. Review the details and approve or reject.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* AI Recommendation Banner */}
+                  {decision && (
+                    <div className={`rounded-lg p-3 border ${
+                      decision.decisionType === 'auto_approve'
+                        ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20'
+                        : decision.decisionType === 'reject'
+                          ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20'
+                          : 'border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20'
+                    }`}>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Brain className="size-4" />
+                        AI Recommendation:
+                        <span className={`capitalize ${
+                          decision.decisionType === 'auto_approve' ? 'text-emerald-700 dark:text-emerald-400'
+                            : decision.decisionType === 'reject' ? 'text-red-700 dark:text-red-400'
+                            : 'text-amber-700 dark:text-amber-400'
+                        }`}>
+                          {decision.decisionType?.replace(/_/g, ' ')}
+                        </span>
+                        {score && (
+                          <>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="font-mono">Score: {score.totalScore}</span>
+                            <GradeBadge grade={score.riskGrade} size="sm" />
+                          </>
+                        )}
+                      </div>
+                      {decision.decisionReason && (
+                        <p className="text-xs text-muted-foreground mt-1">{decision.decisionReason}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Beneficiary Quick Summary */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+                      <p className="text-xs text-muted-foreground">Applicant</p>
+                      <p className="text-sm font-medium mt-0.5 truncate">{app.beneficiary?.name || '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+                      <p className="text-xs text-muted-foreground">Loan Amount</p>
+                      <p className="text-sm font-mono font-bold mt-0.5">{formatCurrency(app.loanAmount)}</p>
+                    </div>
+                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+                      <p className="text-xs text-muted-foreground">Tenure</p>
+                      <p className="text-sm font-medium mt-0.5">{app.loanTenure} months</p>
+                    </div>
+                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+                      <p className="text-xs text-muted-foreground">Scheme</p>
+                      <p className="text-sm font-medium mt-0.5">{app.schemeType || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Decision Buttons */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        className={`flex-1 h-12 text-sm font-semibold ${
+                          approvalDecision === 'auto_approve'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300'
+                        }`}
+                        variant={approvalDecision === 'auto_approve' ? 'default' : 'outline'}
+                        onClick={() => setApprovalDecision('auto_approve')}
+                        disabled={isApproving}
+                      >
+                        <ThumbsUp className="size-4 mr-2" />
+                        Approve Application
+                      </Button>
+                      <Button
+                        className={`flex-1 h-12 text-sm font-semibold ${
+                          approvalDecision === 'reject'
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-300'
+                        }`}
+                        variant={approvalDecision === 'reject' ? 'default' : 'outline'}
+                        onClick={() => setApprovalDecision('reject')}
+                        disabled={isApproving}
+                      >
+                        <ThumbsDown className="size-4 mr-2" />
+                        Reject Application
+                      </Button>
+                    </div>
+
+                    {approvalDecision && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-3 overflow-hidden"
+                      >
+                        <Textarea
+                          placeholder={approvalDecision === 'auto_approve'
+                            ? 'Reason for approval (e.g., "Meets all criteria, good credit score...")'
+                            : 'Reason for rejection (e.g., "Income too low, high risk...")'
+                          }
+                          value={approvalReason}
+                          onChange={(e) => setApprovalReason(e.target.value)}
+                          rows={3}
+                          className="border-amber-300 dark:border-amber-700"
+                        />
+                        <div className="flex items-center gap-3">
+                          <Button
+                            onClick={() => handleApproval(approvalDecision)}
+                            disabled={!approvalReason.trim() || isApproving}
+                            className={`h-11 ${
+                              approvalDecision === 'auto_approve'
+                                ? 'bg-emerald-600 hover:bg-emerald-700'
+                                : 'bg-red-600 hover:bg-red-700'
+                            }`}
+                          >
+                            {isApproving ? (
+                              <><Loader2 className="size-4 mr-2 animate-spin" />Processing...</>
+                            ) : approvalDecision === 'auto_approve' ? (
+                              <><CheckCircle className="size-4 mr-2" />Confirm Approval</>
+                            ) : (
+                              <><Ban className="size-4 mr-2" />Confirm Rejection</>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => { setApprovalDecision(''); setApprovalReason(''); }}
+                            disabled={isApproving}
+                            className="h-11"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {/* Beneficiary Info */}
             <Card className="glass-card">
@@ -370,9 +564,10 @@ export default function ApplicationDetailPage() {
                         {i < app.decisions.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
                       </div>
                       <div className="flex-1 min-w-0 pb-4">
-                        <p className="text-sm font-medium capitalize">{d.decisionType?.replace(/_/g, ' ')}</p>
+                        <p className="text-sm font-medium capitalize">{d.analyst ? d.decisionType?.replace(/_/g, ' ') : `AI Recommendation: ${d.decisionType?.replace(/_/g, ' ')}`}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{d.decisionReason || 'No reason provided'}</p>
                         {d.analyst && <p className="text-xs text-muted-foreground mt-1">By {d.analyst.name} • {formatDateTime(d.createdAt)}</p>}
+                        {!d.analyst && <p className="text-xs text-muted-foreground mt-1">Automated • {formatDateTime(d.createdAt)}</p>}
                         {d.overrides.length > 0 && (
                           <div className="mt-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
                             {d.overrides.map((o) => (
@@ -629,7 +824,7 @@ export default function ApplicationDetailPage() {
           </Card>
 
           {/* Analyst Override Form */}
-          {isAnalyst && (
+          {isAnalyst && !canApprove && (
             <Card className="glass-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">

@@ -1,0 +1,520 @@
+   190→/*  Component                                                          */
+   191→/* ------------------------------------------------------------------ */
+   192→
+   193→export default function ApplicationDetailPage() {
+   194→  const token = useAuthStore((s) => s.token)!;
+   195→  const user = useAuthStore((s) => s.user);
+   196→  const id = useAppStore((s) => s.pageParams.id);
+   197→  const goBack = useAppStore((s) => s.goBack);
+   198→  const navigate = useAppStore((s) => s.navigate);
+   199→  const queryClient = useQueryClient();
+   200→
+   201→  const [overrideGrade, setOverrideGrade] = useState('');
+   202→  const [overrideReason, setOverrideReason] = useState('');
+   203→
+   204→  const { data, isLoading, isError } = useQuery({
+   205→    queryKey: ['application', id],
+   206→    queryFn: async () => {
+   207→      const res = await fetch(`/api/applications/${id}`, {
+   208→        headers: { Authorization: `Bearer ${token}` },
+   209→      });
+   210→      if (!res.ok) throw new Error('Failed to fetch application');
+   211→      const json = await res.json();
+   212→      return json.application as Application;
+   213→    },
+   214→    enabled: !!id,
+   215→  });
+   216→
+   217→  const overrideMutation = useMutation({
+   218→    mutationFn: async () => {
+   219→      const res = await fetch(`/api/applications/${id}/decide`, {
+   220→        method: 'POST',
+   221→        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+   222→        body: JSON.stringify({
+   223→          decisionType: 'manual_review',
+   224→          overrideGrade,
+   225→          overrideReason,
+   226→        }),
+   227→      });
+   228→      if (!res.ok) throw new Error('Override failed');
+   229→      return res.json();
+   230→    },
+   231→    onSuccess: () => {
+   232→      toast.success('Grade override submitted successfully');
+   233→      queryClient.invalidateQueries({ queryKey: ['application', id] });
+   234→      setOverrideGrade('');
+   235→      setOverrideReason('');
+   236→    },
+   237→    onError: () => toast.error('Failed to submit override'),
+   238→  });
+   239→
+   240→  const app = data;
+   241→  const score = app?.scores?.[0];
+   242→  const decision = app?.decisions?.[0];
+   243→
+   244→  const repaymentPaid = app?.repayments?.filter((r) => r.status === 'paid').length ?? 0;
+   245→  const repaymentTotal = app?.repayments?.length ?? 0;
+   246→  const repaymentProgress = repaymentTotal > 0 ? (repaymentPaid / repaymentTotal) * 100 : 0;
+   247→
+   248→  const isAnalyst = user?.role === 'analyst' || user?.role === 'super_admin';
+   249→
+   250→  if (isLoading) {
+   251→    return (
+   252→      <div className="space-y-4 sm:space-y-6">
+   253→        <div className="flex items-center gap-3">
+   254→          <Skeleton className="size-11" />
+   255→          <Skeleton className="h-8 w-56" />
+   256→        </div>
+   257→        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+   258→          <Skeleton className="h-48" /><Skeleton className="h-48" />
+   259→        </div>
+   260→        <Skeleton className="h-96" />
+   261→      </div>
+   262→    );
+   263→  }
+   264→
+   265→  if (isError || !app) {
+   266→    return (
+   267→      <div className="space-y-4">
+   268→        <Button variant="ghost" size="sm" className="h-11" onClick={goBack}><ArrowLeft className="size-4 mr-1" />Back</Button>
+   269→        <Card className="p-6 sm:p-8 text-center"><p className="text-muted-foreground">Application not found.</p></Card>
+   270→      </div>
+   271→    );
+   272→  }
+   273→
+   274→  return (
+   275→    <motion.div
+   276→      className="space-y-4 sm:space-y-6 animate-fade-in-up"
+   277→      initial={{ opacity: 0, y: 10 }}
+   278→      animate={{ opacity: 1, y: 0 }}
+   279→      transition={{ duration: 0.4 }}
+   280→    >
+   281→      {/* Back + Header */}
+   282→      <div className="flex items-center gap-3">
+   283→        <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" onClick={goBack}>
+   284→          <ArrowLeft className="size-4" />
+   285→        </Button>
+   286→        <PageHeader
+   287→          title={app.applicationNumber}
+   288→          description={`${formatCurrency(app.loanAmount)} — ${app.loanPurpose?.replace(/_/g, ' ')}`}
+   289→          actions={<StatusBadge status={app.status} />}
+   290→        />
+   291→      </div>
+   292→
+   293→      <Tabs defaultValue="overview" className="space-y-4">
+   294→        <div className="overflow-x-auto -mx-1 px-1">
+   295→        <TabsList className="inline-flex min-w-max">
+   296→          <TabsTrigger value="overview" className="h-11">Overview</TabsTrigger>
+   297→          <TabsTrigger value="credit-score" className="h-11">Credit Score</TabsTrigger>
+   298→          <TabsTrigger value="documents" className="h-11">Documents</TabsTrigger>
+   299→          <TabsTrigger value="repayments" className="h-11">Repayments</TabsTrigger>
+   300→          <TabsTrigger value="decision" className="h-11">Decision</TabsTrigger>
+   301→        </TabsList>
+   302→        </div>
+   303→
+   304→        {/* ──────── OVERVIEW TAB ──────── */}
+   305→        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+   306→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+   307→            {/* Beneficiary Info */}
+   308→            <Card className="glass-card">
+   309→              <CardHeader className="pb-3">
+   310→                <CardTitle className="text-base flex items-center gap-2">
+   311→                  <User className="size-4 text-primary" /> Beneficiary Information
+   312→                </CardTitle>
+   313→              </CardHeader>
+   314→              <CardContent className="space-y-1">
+   315→                <InfoRow label="Name" value={app.beneficiary?.name} icon={User} />
+   316→                <InfoRow label="Aadhaar" value={maskAadhaar(app.beneficiary?.aadhaarNumber)} icon={CreditCard} />
+   317→                <InfoRow label="Phone" value={app.beneficiary?.phone} icon={Phone} />
+   318→                <InfoRow label="State" value={app.beneficiary?.state} icon={MapPin} />
+   319→                <InfoRow label="Category" value={app.beneficiary?.category} icon={Shield} />
+   320→                <InfoRow label="Occupation" value={app.beneficiary?.occupation} icon={Briefcase} />
+   321→              </CardContent>
+   322→            </Card>
+   323→
+   324→            {/* Application Info */}
+   325→            <Card className="glass-card">
+   326→              <CardHeader className="pb-3">
+   327→                <CardTitle className="text-base flex items-center gap-2">
+   328→                  <FileText className="size-4 text-primary" /> Application Details
+   329→                </CardTitle>
+   330→              </CardHeader>
+   331→              <CardContent className="space-y-1">
+   332→                <InfoRow label="Amount" value={formatCurrency(app.loanAmount)} icon={IndianRupee} />
+   333→                <InfoRow label="Tenure" value={`${app.loanTenure} months`} icon={Calendar} />
+   334→                <InfoRow label="Purpose" value={app.loanPurpose?.replace(/_/g, ' ')} icon={Briefcase} />
+   335→                <InfoRow label="Scheme" value={app.schemeType} icon={Landmark} />
+   336→                <InfoRow label="Interest Rate" value={app.interestRate ? `${app.interestRate}%` : null} icon={Activity} />
+   337→                <InfoRow label="EMI" value={app.emiAmount ? formatCurrency(app.emiAmount) : null} icon={IndianRupee} />
+   338→                <InfoRow label="Status" value={undefined} icon={Clock} />
+   339→                <div className="flex justify-end py-1"><StatusBadge status={app.status} /></div>
+   340→                <Separator className="my-1" />
+   341→                <InfoRow label="Submitted" value={formatDate(app.submittedAt)} icon={Calendar} />
+   342→                <InfoRow label="Decision" value={formatDate(app.decisionAt)} icon={Clock} />
+   343→                <InfoRow label="Disbursed" value={formatDate(app.disbursedAt)} icon={Calendar} />
+   344→              </CardContent>
+   345→            </Card>
+   346→          </div>
+   347→
+   348→          {/* Decision History Timeline */}
+   349→          <Card className="glass-card">
+   350→            <CardHeader className="pb-3">
+   351→              <CardTitle className="text-base">Decision History</CardTitle>
+   352→            </CardHeader>
+   353→            <CardContent>
+   354→              {app.decisions.length === 0 ? (
+   355→                <p className="text-sm text-muted-foreground">No decisions yet.</p>
+   356→              ) : (
+   357→                <div className="space-y-3 sm:space-y-4">
+   358→                  {app.decisions.map((d, i) => (
+   359→                    <div key={d.id} className="flex gap-3">
+   360→                      <div className="flex flex-col items-center">
+   361→                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+   362→                          d.decisionType === 'auto_approve' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+   363→                          d.decisionType === 'reject' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+   364→                          'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+   365→                        }`}>
+   366→                          {d.decisionType === 'auto_approve' ? <CheckCircle className="size-4" /> :
+   367→                           d.decisionType === 'reject' ? <XCircle className="size-4" /> :
+   368→                           <Clock className="size-4" />}
+   369→                        </div>
+   370→                        {i < app.decisions.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
+   371→                      </div>
+   372→                      <div className="flex-1 min-w-0 pb-4">
+   373→                        <p className="text-sm font-medium capitalize">{d.decisionType?.replace(/_/g, ' ')}</p>
+   374→                        <p className="text-xs text-muted-foreground mt-0.5">{d.decisionReason || 'No reason provided'}</p>
+   375→                        {d.analyst && <p className="text-xs text-muted-foreground mt-1">By {d.analyst.name} • {formatDateTime(d.createdAt)}</p>}
+   376→                        {d.overrides.length > 0 && (
+   377→                          <div className="mt-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+   378→                            {d.overrides.map((o) => (
+   379→                              <p key={o.id} className="text-xs text-amber-700 dark:text-amber-400">
+   380→                                Grade override: <span className="font-mono font-bold">{o.originalGrade}</span> → <span className="font-mono font-bold">{o.newGrade}</span> by {o.analyst.name}
+   381→                                {o.reason && ` — "${o.reason}"`}
+   382→                              </p>
+   383→                            ))}
+   384→                          </div>
+   385→                        )}
+   386→                      </div>
+   387→                    </div>
+   388→                  ))}
+   389→                </div>
+   390→              )}
+   391→            </CardContent>
+   392→          </Card>
+   393→        </TabsContent>
+   394→
+   395→        {/* ──────── CREDIT SCORE TAB ──────── */}
+   396→        <TabsContent value="credit-score" className="space-y-3 sm:space-y-4">
+   397→          {!score ? (
+   398→            <Card className="p-6 sm:p-8 text-center">
+   399→              <Brain className="size-10 text-muted-foreground mx-auto mb-3" />
+   400→              <p className="text-muted-foreground">No credit score available yet.</p>
+   401→            </Card>
+   402→          ) : (
+   403→            <>
+   404→              {/* Score Ring */}
+   405→              <Card className="glass-card">
+   406→                <CardContent className="py-6 sm:py-8 flex flex-col items-center">
+   407→                  <ScoreRing score={score.totalScore} size={180} riskGrade={score.riskGrade} />
+   408→                  <p className="text-xs text-muted-foreground mt-2 text-center">Model: <span className="font-mono">{score.modelVersion}</span> • Scored: {formatDateTime(score.scoredAt)}</p>
+   409→                </CardContent>
+   410→              </Card>
+   411→
+   412→              {/* Ensemble Scores */}
+   413→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+   414→                {[
+   415→                  { label: 'XGBoost', value: score.xgboostScore, icon: Zap, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
+   416→                  { label: 'CatBoost', value: score.catboostScore, icon: Brain, color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20' },
+   417→                  { label: 'Deep Forest', value: score.deepForestScore, icon: Activity, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' },
+   418→                ].map((m) => (
+   419→                  <Card key={m.label} className="glass-card">
+   420→                    <CardContent className="p-4 flex items-center gap-3">
+   421→                      <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${m.color}`}>
+   422→                        <m.icon className="size-5" />
+   423→                      </div>
+   424→                      <div>
+   425→                        <p className="text-xs text-muted-foreground">{m.label}</p>
+   426→                        <p className="text-lg font-mono font-bold tabular-nums">{m.value?.toFixed(1) ?? '—'}</p>
+   427→                      </div>
+   428→                    </CardContent>
+   429→                  </Card>
+   430→                ))}
+   431→              </div>
+   432→
+   433→              {/* Confidence + Repayment + Consumption */}
+   434→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+   435→                <Card className="glass-card">
+   436→                  <CardContent className="p-4">
+   437→                    <p className="text-xs text-muted-foreground mb-2">Confidence Score</p>
+   438→                    <div className="flex items-center gap-3">
+   439→                      <Progress value={score.confidenceScore} className="flex-1 h-2" />
+   440→                      <span className="font-mono font-bold text-sm tabular-nums shrink-0">{score.confidenceScore.toFixed(0)}%</span>
+   441→                    </div>
+   442→                  </CardContent>
+   443→                </Card>
+   444→                <Card className="glass-card">
+   445→                  <CardContent className="p-4">
+   446→                    <p className="text-xs text-muted-foreground">Repayment Score</p>
+   447→                    <p className="text-lg font-mono font-bold tabular-nums mt-1">{score.repaymentScore?.toFixed(1) ?? '—'}</p>
+   448→                  </CardContent>
+   449→                </Card>
+   450→                <Card className="glass-card">
+   451→                  <CardContent className="p-4">
+   452→                    <p className="text-xs text-muted-foreground">Consumption Score</p>
+   453→                    <p className="text-lg font-mono font-bold tabular-nums mt-1">{score.consumptionScore?.toFixed(1) ?? '—'}</p>
+   454→                  </CardContent>
+   455→                </Card>
+   456→              </div>
+   457→
+   458→              {/* SHAP Waterfall */}
+   459→              <Card className="glass-card">
+   460→                <CardHeader className="pb-2">
+   461→                  <CardTitle className="text-base">Feature Contributions (SHAP)</CardTitle>
+   462→                  <CardDescription>How each feature influenced the credit score</CardDescription>
+   463→                </CardHeader>
+   464→                <CardContent>
+   465→                  <div className="overflow-x-auto -mx-1 px-1">
+   466→                    <div className="min-w-[400px]">
+   467→                      <ShapWaterfallChart
+   468→                        shapValues={score.shapValues || []}
+   469→                        baseValue={50}
+   470→                        finalScore={score.totalScore}
+   471→                      />
+   472→                    </div>
+   473→                  </div>
+   474→                </CardContent>
+   475→              </Card>
+   476→
+   477→              {/* Feature Weights Table */}
+   478→              <Card className="glass-card">
+   479→                <CardHeader className="pb-2">
+   480→                  <CardTitle className="text-base">Feature Weights</CardTitle>
+   481→                </CardHeader>
+   482→                <CardContent className="p-0">
+   483→                  <div className="max-h-64 overflow-x-auto overflow-y-auto scrollbar-thin">
+   484→                    <Table>
+   485→                      <TableHeader><TableRow><TableHead>Feature</TableHead><TableHead className="text-right">Weight</TableHead></TableRow></TableHeader>
+   486→                      <TableBody>
+   487→                        {Object.entries(score.featureWeights || {}).sort(([, a], [, b]) => Math.abs(b as number) - Math.abs(a as number)).map(([key, val]) => (
+   488→                          <TableRow key={key}>
+   489→                            <TableCell className="text-sm capitalize">{key.replace(/_/g, ' ')}</TableCell>
+   490→                            <TableCell className="font-mono text-sm text-right tabular-nums whitespace-nowrap">{(val as number).toFixed(4)}</TableCell>
+   491→                          </TableRow>
+   492→                        ))}
+   493→                      </TableBody>
+   494→                    </Table>
+   495→                  </div>
+   496→                </CardContent>
+   497→              </Card>
+   498→            </>
+   499→          )}
+   500→        </TabsContent>
+   501→
+   502→        {/* ──────── DOCUMENTS TAB ──────── */}
+   503→        <TabsContent value="documents" className="space-y-3 sm:space-y-4">
+   504→          <div className="flex items-center justify-between gap-3">
+   505→            <p className="text-sm text-muted-foreground">{app.documents.length} document(s)</p>
+   506→            <Button variant="outline" size="sm" className="h-11 shrink-0" onClick={() => toast.info('Upload feature coming soon')}>
+   507→              <Upload className="size-4 mr-1.5" /> Upload Document
+   508→            </Button>
+   509→          </div>
+   510→          {app.documents.length === 0 ? (
+   511→            <Card className="p-6 sm:p-8 text-center">
+   512→              <FileText className="size-10 text-muted-foreground mx-auto mb-3" />
+   513→              <p className="text-muted-foreground">No documents uploaded yet.</p>
+   514→            </Card>
+   515→          ) : (
+   516→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+   517→              {app.documents.map((doc) => (
+   518→                <Card key={doc.id} className="glass-card">
+   519→                  <CardContent className="p-4 space-y-3">
+   520→                    <div className="flex items-center justify-between gap-2">
+   521→                      <Badge variant="outline" className="text-xs">{formatDocType(doc.type)}</Badge>
+   522→                      <StatusBadge status={doc.status} />
+   523→                    </div>
+   524→                    <p className="text-sm font-medium truncate" title={doc.fileName}>{doc.fileName || 'Unnamed'}</p>
+   525→                    <div className="space-y-1 text-xs text-muted-foreground">
+   526→                      <div className="flex justify-between">
+   527→                        <span>OCR Confidence</span>
+   528→                        <span className="font-mono font-medium">{doc.ocrConfidence != null ? `${(doc.ocrConfidence * 100).toFixed(0)}%` : '—'}</span>
+   529→                      </div>
+   530→                      <div className="flex justify-between">
+   531→                        <span>Verified</span>
+   532→                        <span>{doc.verifiedAt ? formatDateTime(doc.verifiedAt) : 'No'}</span>
+   533→                      </div>
+   534→                    </div>
+   535→                    {doc.ocrData && (
+   536→                      <details className="text-xs">
+   537→                        <summary className="text-primary cursor-pointer hover:underline min-h-[44px] flex items-center">OCR Extracted Data</summary>
+   538→                        <pre className="mt-1 p-2 rounded bg-muted text-xs max-h-24 overflow-y-auto scrollbar-thin font-mono whitespace-pre-wrap">{doc.ocrData.slice(0, 500)}</pre>
+   539→                      </details>
+   540→                    )}
+   541→                  </CardContent>
+   542→                </Card>
+   543→              ))}
+   544→            </div>
+   545→          )}
+   546→        </TabsContent>
+   547→
+   548→        {/* ──────── REPAYMENTS TAB ──────── */}
+   549→        <TabsContent value="repayments" className="space-y-3 sm:space-y-4">
+   550→          <Card className="glass-card">
+   551→            <CardContent className="p-4 sm:p-6">
+   552→              <div className="flex items-center justify-between mb-3 gap-2">
+   553→                <p className="text-sm font-medium">Repayment Progress</p>
+   554→                <p className="text-sm font-mono tabular-nums shrink-0"><span className="font-bold text-primary">{repaymentPaid}</span> / {repaymentTotal} EMIs</p>
+   555→              </div>
+   556→              <Progress value={repaymentProgress} className="h-3" />
+   557→              <p className="text-xs text-muted-foreground mt-2 text-right">{repaymentProgress.toFixed(1)}% complete</p>
+   558→            </CardContent>
+   559→          </Card>
+   560→
+   561→          {app.repayments.length === 0 ? (
+   562→            <Card className="p-6 sm:p-8 text-center">
+   563→              <Calendar className="size-10 text-muted-foreground mx-auto mb-3" />
+   564→              <p className="text-muted-foreground">No repayment schedule generated yet.</p>
+   565→            </Card>
+   566→          ) : (
+   567→            <Card className="glass-card">
+   568→              <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
+   569→                <Table>
+   570→                  <TableHeader>
+   571→                    <TableRow className="sticky top-0 bg-card z-10">
+   572→                      <TableHead className="font-semibold">EMI #</TableHead>
+   573→                      <TableHead className="font-semibold">Due Date</TableHead>
+   574→                      <TableHead className="font-semibold text-right">Due Amount</TableHead>
+   575→                      <TableHead className="font-semibold text-right">Paid</TableHead>
+   576→                      <TableHead className="font-semibold">Status</TableHead>
+   577→                      <TableHead className="font-semibold text-right">Days Overdue</TableHead>
+   578→                    </TableRow>
+   579→                  </TableHeader>
+   580→                  <TableBody>
+   581→                    {app.repayments.map((r) => (
+   582→                      <TableRow key={r.id}>
+   583→                        <TableCell className="font-mono text-sm whitespace-nowrap">#{r.emiNumber}</TableCell>
+   584→                        <TableCell className="text-sm whitespace-nowrap">{formatDate(r.dueDate)}</TableCell>
+   585→                        <TableCell className="font-mono text-sm text-right whitespace-nowrap">{formatCurrency(r.dueAmount)}</TableCell>
+   586→                        <TableCell className={`font-mono text-sm text-right whitespace-nowrap ${r.paidAmount ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+   587→                          {r.paidAmount ? formatCurrency(r.paidAmount) : '—'}
+   588→                        </TableCell>
+   589→                        <TableCell><StatusBadge status={r.status} /></TableCell>
+   590→                        <TableCell className={`font-mono text-sm text-right whitespace-nowrap ${r.daysOverdue > 0 ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>{r.daysOverdue}</TableCell>
+   591→                      </TableRow>
+   592→                    ))}
+   593→                  </TableBody>
+   594→                </Table>
+   595→              </div>
+   596→            </Card>
+   597→          )}
+   598→        </TabsContent>
+   599→
+   600→        {/* ──────── DECISION TAB ──────── */}
+   601→        <TabsContent value="decision" className="space-y-3 sm:space-y-4">
+   602→          {/* Current Decision */}
+   603→          <Card className="glass-card">
+   604→            <CardHeader className="pb-3">
+   605→              <CardTitle className="text-base">Current Decision</CardTitle>
+   606→            </CardHeader>
+   607→            <CardContent>
+   608→              {decision ? (
+   609→                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+   610→                  <div className={`size-12 rounded-xl flex items-center justify-center shrink-0 ${
+   611→                    decision.decisionType === 'auto_approve' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+   612→                    decision.decisionType === 'reject' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+   613→                    'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+   614→                  }`}>
+   615→                    {decision.decisionType === 'auto_approve' ? <CheckCircle className="size-6" /> :
+   616→                     decision.decisionType === 'reject' ? <XCircle className="size-6" /> :
+   617→                     <AlertTriangle className="size-6" />}
+   618→                  </div>
+   619→                  <div className="min-w-0">
+   620→                    <p className="text-lg font-semibold capitalize">{decision.decisionType?.replace(/_/g, ' ')}</p>
+   621→                    <p className="text-sm text-muted-foreground">{decision.decisionReason || 'No reason provided'}</p>
+   622→                    {decision.analyst && <p className="text-xs text-muted-foreground mt-1">By {decision.analyst.name} • {formatDateTime(decision.createdAt)}</p>}
+   623→                  </div>
+   624→                </div>
+   625→              ) : (
+   626→                <p className="text-sm text-muted-foreground">No decision has been made yet.</p>
+   627→              )}
+   628→            </CardContent>
+   629→          </Card>
+   630→
+   631→          {/* Analyst Override Form */}
+   632→          {isAnalyst && (
+   633→            <Card className="glass-card">
+   634→              <CardHeader className="pb-3">
+   635→                <CardTitle className="text-base flex items-center gap-2">
+   636→                  <Shield className="size-4 text-amber-500" /> Analyst Override
+   637→                </CardTitle>
+   638→                <CardDescription>Override the risk grade for this application (requires justification)</CardDescription>
+   639→              </CardHeader>
+   640→              <CardContent className="space-y-3 sm:space-y-4">
+   641→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+   642→                  <div className="space-y-2">
+   643→                    <Label>New Grade</Label>
+   644→                    <Select value={overrideGrade} onValueChange={setOverrideGrade}>
+   645→                      <SelectTrigger className="h-11"><SelectValue placeholder="Select new grade" /></SelectTrigger>
+   646→                      <SelectContent>
+   647→                        {['A+', 'A', 'B+', 'B', 'C+', 'C', 'D'].map((g) => (
+   648→                          <SelectItem key={g} value={g}><span className="font-mono font-bold">{g}</span></SelectItem>
+   649→                        ))}
+   650→                      </SelectContent>
+   651→                    </Select>
+   652→                  </div>
+   653→                  <div className="space-y-2">
+   654→                    <Label>Current Grade</Label>
+   655→                    <div className="h-11 flex items-center px-3 rounded-md border bg-muted/50">
+   656→                      {score ? <GradeBadge grade={score.riskGrade} size="md" /> : <span className="text-sm text-muted-foreground">Not scored</span>}
+   657→                    </div>
+   658→                  </div>
+   659→                </div>
+   660→                <div className="space-y-2">
+   661→                  <Label>Reason for Override</Label>
+   662→                  <Textarea
+   663→                    placeholder="Provide a detailed justification for this grade override..."
+   664→                    value={overrideReason}
+   665→                    onChange={(e) => setOverrideReason(e.target.value)}
+   666→                    rows={3}
+   667→                  />
+   668→                </div>
+   669→                <Button
+   670→                  onClick={() => overrideMutation.mutate()}
+   671→                  disabled={!overrideGrade || !overrideReason || overrideMutation.isPending}
+   672→                  className="w-full sm:w-auto h-11"
+   673→                >
+   674→                  {overrideMutation.isPending ? 'Submitting...' : 'Submit Override'}
+   675→                </Button>
+   676→              </CardContent>
+   677→            </Card>
+   678→          )}
+   679→
+   680→          {/* Decision History List */}
+   681→          <Card className="glass-card">
+   682→            <CardHeader className="pb-3">
+   683→              <CardTitle className="text-base">All Decisions</CardTitle>
+   684→            </CardHeader>
+   685→            <CardContent>
+   686→              {app.decisions.length === 0 ? (
+   687→                <p className="text-sm text-muted-foreground">No decisions recorded.</p>
+   688→              ) : (
+   689→                <div className="max-h-64 overflow-y-auto scrollbar-thin space-y-3">
+   690→                  {app.decisions.map((d) => (
+   691→                    <div key={d.id} className="p-3 rounded-lg border border-border/50 space-y-1">
+   692→                      <div className="flex items-center justify-between gap-2">
+   693→                        <span className="text-sm font-medium capitalize">{d.decisionType?.replace(/_/g, ' ')}</span>
+   694→                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDateTime(d.createdAt)}</span>
+   695→                      </div>
+   696→                      {d.decisionReason && <p className="text-xs text-muted-foreground">{d.decisionReason}</p>}
+   697→                      {d.analyst && <p className="text-xs text-muted-foreground">Analyst: {d.analyst.name}</p>}
+   698→                    </div>
+   699→                  ))}
+   700→                </div>
+   701→              )}
+   702→            </CardContent>
+   703→          </Card>
+   704→        </TabsContent>
+   705→      </Tabs>
+   706→    </motion.div>
+   707→  );
+   708→}
+   709→

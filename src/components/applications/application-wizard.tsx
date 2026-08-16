@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useForm, useFormContext, FormProvider } from 'react-hook-form';
+import { useForm, useFormContext, FormProvider, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Loader2,
   Shield,
+  Clock,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -654,6 +655,15 @@ function ReviewStep() {
           <Shield className="size-4 text-primary" />
           Consent & Declaration
         </h3>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30 p-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+            <Shield className="size-4" />
+            Important: Consent Required
+          </p>
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            Please read and accept all consent items below to proceed with your loan application.
+          </p>
+        </div>
         <ConsentCheckboxes />
       </div>
     </div>
@@ -662,34 +672,60 @@ function ReviewStep() {
 
 function ConsentCheckboxes() {
   const {
-    register,
+    control,
     formState: { errors },
   } = useFormContext<ApplicationFormData>();
 
   const items = [
-    { name: 'consentCreditBureau' as const, label: 'I consent to credit bureau check' },
-    { name: 'consentDataSharing' as const, label: 'I authorize data sharing with NBCFDC' },
-    { name: 'consentAccuracy' as const, label: 'I declare all information is accurate' },
+    { name: 'consentCreditBureau' as const, label: 'I consent to credit bureau check', desc: 'Authorization to verify credit history through bureau databases' },
+    { name: 'consentDataSharing' as const, label: 'I authorize data sharing with NBCFDC', desc: 'Your data will be shared securely with NBCFDC for loan processing' },
+    { name: 'consentAccuracy' as const, label: 'I declare all information is accurate', desc: 'All details provided are true and complete to the best of my knowledge' },
   ];
 
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <div key={item.name} className="flex items-start gap-3">
-          <Checkbox
-            id={item.name}
-            {...register(item.name)}
-            className="mt-0.5"
-          />
-          <Label htmlFor={item.name} className="text-sm leading-snug cursor-pointer">
-            {item.label}
-          </Label>
-        </div>
+        <Controller
+          key={item.name}
+          name={item.name}
+          control={control}
+          render={({ field }) => (
+            <div
+              className={`flex items-start gap-3 rounded-lg border p-3 transition-colors cursor-pointer ${
+                field.value
+                  ? 'border-primary/40 bg-primary/5'
+                  : errors[item.name]
+                    ? 'border-destructive/40 bg-destructive/5'
+                    : 'border-border hover:border-border/80'
+              }`}
+              onClick={() => field.onChange(!field.value)}
+            >
+              <Checkbox
+                id={item.name}
+                checked={!!field.value}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+                className="mt-0.5"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="flex-1">
+                <Label htmlFor={item.name} className="text-sm font-medium leading-snug cursor-pointer">
+                  {item.label}
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+            </div>
+          )}
+        />
       ))}
       {(errors.consentCreditBureau || errors.consentDataSharing || errors.consentAccuracy) && (
-        <p className="text-xs text-destructive">
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-1.5 text-xs text-destructive font-medium"
+        >
+          <Shield className="size-3.5" />
           All consents are required to submit the application.
-        </p>
+        </motion.p>
       )}
     </div>
   );
@@ -702,7 +738,7 @@ function SuccessOverlay({
   appNumber,
   onClose,
 }: {
-  score: { totalScore: number; riskGrade: string; decisionType: string };
+  score: { totalScore: number; riskGrade: string };
   appNumber: string;
   onClose: () => void;
 }) {
@@ -712,17 +748,6 @@ function SuccessOverlay({
     if (grade.includes('C')) return 'text-amber-600';
     return 'text-red-600';
   }, [score.riskGrade]);
-
-  const decisionLabel = useMemo(() => {
-    switch (score.decisionType) {
-      case 'auto_approve':
-        return { label: 'Auto Approved', color: 'bg-emerald-100 text-emerald-800' };
-      case 'reject':
-        return { label: 'Rejected', color: 'bg-red-100 text-red-800' };
-      default:
-        return { label: 'Under Review', color: 'bg-amber-100 text-amber-800' };
-    }
-  }, [score.decisionType]);
 
   return (
     <motion.div
@@ -771,12 +796,15 @@ function SuccessOverlay({
               </div>
             </div>
 
-            <Badge className={decisionLabel.color}>{decisionLabel.label}</Badge>
+            <Badge className="bg-amber-100 text-amber-800">
+              <Clock className="mr-1 size-3" />
+              Pending Admin Review
+            </Badge>
           </motion.div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
             <p className="mt-4 text-xs text-muted-foreground">
-              Redirecting to application details...
+              Your application will be reviewed by an administrator. Redirecting...
             </p>
           </motion.div>
         </Card>
@@ -830,9 +858,9 @@ export function ApplicationWizard() {
       mobileRechargeConsistency: 50,
       utilityPaymentHistory: 50,
       repaymentHistory: 50,
-      consentCreditBureau: false as unknown as true,
-      consentDataSharing: false as unknown as true,
-      consentAccuracy: false as unknown as true,
+      consentCreditBureau: false,
+      consentDataSharing: false,
+      consentAccuracy: false,
     },
     mode: 'onBlur',
   });
@@ -891,7 +919,7 @@ export function ApplicationWizard() {
 
       // Navigate after 2 seconds
       setTimeout(() => {
-        navigate('application-detail', { id: responseData.application.applicationNumber });
+        navigate('application-detail', { id: responseData.application.id });
       }, 2000);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong');

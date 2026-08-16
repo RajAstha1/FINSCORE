@@ -37,9 +37,9 @@ export async function POST(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    if (!['scoring', 'under_review'].includes(application.status)) {
+    if (!['submitted', 'scoring', 'under_review'].includes(application.status)) {
       return NextResponse.json({
-        error: `Cannot decide on application with status '${application.status}'. Must be in scoring or under_review state.`,
+        error: `Cannot decide on application with status '${application.status}'. Must be in submitted, scoring, or under_review state.`,
       }, { status: 400 });
     }
 

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Shield,
   LayoutDashboard,
@@ -143,11 +144,13 @@ function NavItemButton({
   isActive,
   onClick,
   showTooltip,
+  badge,
 }: {
   item: { page: string; label: string; icon: React.ElementType };
   isActive: boolean;
   onClick: () => void;
   showTooltip?: boolean;
+  badge?: number;
 }) {
   const Icon = item.icon;
   const button = (
@@ -161,6 +164,11 @@ function NavItemButton({
     >
       <Icon className={`size-4 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-primary' : ''}`} />
       <span className="truncate">{item.label}</span>
+      {badge != null && badge > 0 && (
+        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shrink-0">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </button>
   );
 
@@ -192,7 +200,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }) {
   const { currentPage, navigate } = useAppStore();
-  const { user, logout, hasRole } = useAuthStore();
+  const { user, logout, hasRole, token } = useAuthStore();
   const [adminOpen, setAdminOpen] = useState(false);
 
   // Check if any admin sub-item is active
@@ -207,6 +215,21 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
   useState(() => {
     if (isAdminSubActive) setAdminOpen(true);
   });
+
+  // Fetch pending applications count for sidebar badge
+  const { data: pendingData } = useQuery({
+    queryKey: ['pending-applications-count'],
+    queryFn: async () => {
+      const res = await fetch('/api/applications?status=submitted&limit=1', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return { pagination: { total: 0 } };
+      return res.json();
+    },
+    enabled: !!token && hasRole('super_admin', 'analyst'),
+    refetchInterval: 30000, // Refresh every 30s
+  });
+  const pendingCount = pendingData?.pagination?.total ?? 0;
 
   const visibleNavItems = NAV_ITEMS.filter((item) => hasRole(...item.roles));
   const showAdminSection = hasRole('super_admin');
@@ -242,6 +265,7 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
               isActive={currentPage === item.page}
               onClick={() => navigate(item.page)}
               showTooltip={isDesktop}
+              badge={item.page === 'applications' ? pendingCount : undefined}
             />
           ))}
 

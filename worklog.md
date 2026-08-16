@@ -462,3 +462,29 @@ Comprehensive browser-based verification using VLM analysis. Fixed 4 remaining i
 - Mobile (375x812): 5/5 PASS
 - Login Page: 5/5 PASS
 - Lint: zero errors
+
+---
+Task ID: 7
+Agent: main
+Task: Fix application submission (consent checkboxes), add admin approval flow
+
+Work Log:
+- Diagnosed consent checkbox issue: shadcn/ui Checkbox uses Radix UI's checked/onCheckedChange, not register() from react-hook-form
+- Fixed ConsentCheckboxes component to use Controller with checked/onCheckedChange
+- Added amber consent info banner before consent checkboxes
+- Changed applications POST API to set status='submitted' (not auto-approved/rejected)
+- AI decision stored as recommendation with analystId=null
+- Updated decide API to accept 'submitted' status for decisions
+- Added Admin Approval Panel to application-detail page (amber card with AI recommendation, quick summary, Approve/Reject buttons, reason textarea)
+- Added pending applications count badge in sidebar (amber badge, refreshes every 30s)
+- Set default filter in applications list to 'submitted' status
+- Updated success overlay to show 'Pending Admin Review' instead of auto-decision
+- Added Loader2, ThumbsUp, ThumbsDown, Gavel, Ban, Clock icon imports
+- Verified end-to-end via agent-browser: submission creates 'submitted' status, sidebar shows badge, admin can see approval panel with AI recommendation
+
+Stage Summary:
+- Fixed: Consent checkboxes now use Controller (checked/onCheckedChange) - form validation passes
+- Fixed: Applications stay in 'submitted' status after creation, awaiting admin review
+- Added: Admin Approval panel with Approve/Reject buttons, AI recommendation display
+- Added: Sidebar badge showing pending application count (9)
+- All changes pass lint with zero errors

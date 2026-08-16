@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Auto-score
+    // Auto-score the application
     const features = generateFeaturesFromData({
       age: beneficiary.dateOfBirth ? Math.floor((Date.now() - beneficiary.dateOfBirth.getTime()) / 31557600000) : 35,
       monthlyIncome: body.monthlyIncome,
@@ -150,24 +150,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create decision
-    const newStatus = scoreResult.decisionType === 'auto_approve' ? 'approved' : scoreResult.decisionType === 'reject' ? 'rejected' : 'under_review';
+    // Create AI recommendation (not a final decision)
     await db.creditDecision.create({
       data: {
         applicationId: application.id,
         decisionType: scoreResult.decisionType,
-        decisionReason: scoreResult.decisionReason,
-        analystId: payload.userId,
-        approvedAmount: scoreResult.decisionType === 'auto_approve' ? body.loanAmount : null,
-        approvedTenure: scoreResult.decisionType === 'auto_approve' ? body.loanTenure : null,
-        approvedRate: scoreResult.decisionType === 'auto_approve' ? 8.5 : null,
+        decisionReason: `AI Recommendation: ${scoreResult.decisionReason} — Awaiting admin review`,
+        analystId: null,
+        approvedAmount: null,
+        approvedTenure: null,
+        approvedRate: null,
       },
     });
 
-    // Update application status
+    // Application stays as 'submitted' — admin must review and approve/reject
     await db.loanApplication.update({
       where: { id: application.id },
-      data: { status: newStatus, decisionAt: new Date() },
+      data: { status: 'submitted' },
     });
 
     // Audit
@@ -176,7 +175,7 @@ export async function POST(request: NextRequest) {
         userId: payload.userId,
         action: 'CREATE_APPLICATION',
         resource: 'loan_application',
-        details: JSON.stringify({ appId: application.id, appNumber, score: scoreResult.totalScore, grade: scoreResult.riskGrade }),
+        details: JSON.stringify({ appId: application.id, appNumber, score: scoreResult.totalScore, grade: scoreResult.riskGrade, aiRecommendation: scoreResult.decisionType }),
       },
     });
 

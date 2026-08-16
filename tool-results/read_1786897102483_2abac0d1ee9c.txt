@@ -1,0 +1,1042 @@
+     1→    50→  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+     2→    51→  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+     3→    52→  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+     4→    53→  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+     5→    54→];
+     6→    55→
+     7→    56→const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+     8→    57→const CATEGORY_OPTIONS = ['SC', 'ST', 'OBC', 'General'];
+     9→    58→const EDUCATION_OPTIONS = [
+    10→    59→  'Illiterate', 'Primary', 'Secondary', 'Higher Secondary',
+    11→    60→  'Graduate', 'Postgraduate',
+    12→    61→];
+    13→    62→const MARITAL_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
+    14→    63→const LOAN_PURPOSE_OPTIONS = [
+    15→    64→  'Education', 'Medical', 'Business', 'Agriculture', 'Housing', 'Consumption',
+    16→    65→];
+    17→    66→const TENURE_OPTIONS = ['6', '12', '18', '24', '36', '48', '60'];
+    18→    67→const SCHEME_OPTIONS = ['NBCFDC', 'NMDFC', 'NSKFDC', 'State Channel'];
+    19→    68→
+    20→    69→const STEPS = [
+    21→    70→  { id: 1, name: 'Personal Info', icon: User },
+    22→    71→  { id: 2, name: 'Address', icon: MapPin },
+    23→    72→  { id: 3, name: 'Income', icon: Briefcase },
+    24→    73→  { id: 4, name: 'Loan Details', icon: IndianRupee },
+    25→    74→  { id: 5, name: 'Consumption', icon: Zap },
+    26→    75→  { id: 6, name: 'Review', icon: CheckCircle2 },
+    27→    76→] as const;
+    28→    77→
+    29→    78→const currencyFmt = new Intl.NumberFormat('en-IN', {
+    30→    79→  style: 'currency',
+    31→    80→  currency: 'INR',
+    32→    81→  minimumFractionDigits: 0,
+    33→    82→  maximumFractionDigits: 0,
+    34→    83→});
+    35→    84→
+    36→    85→// ─── Zod Schema ─────────────────────────────────────────────────────────────
+    37→    86→
+    38→    87→const personalSchema = z.object({
+    39→    88→  name: z.string().min(2, 'Name must be at least 2 characters'),
+    40→    89→  aadhaarNumber: z
+    41→    90→    .string()
+    42→    91→    .min(12, 'Aadhaar must be 12 digits')
+    43→    92→    .max(12, 'Aadhaar must be 12 digits')
+    44→    93→    .regex(/^\d{12}$/, 'Aadhaar must be 12 digits only'),
+    45→    94→  panNumber: z
+    46→    95→    .string()
+    47→    96→    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g. ABCDE1234F)'),
+    48→    97→  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+    49→    98→  gender: z.string().min(1, 'Select a gender'),
+    50→    99→  category: z.string().min(1, 'Select a category'),
+    51→   100→  educationLevel: z.string().min(1, 'Select education level'),
+    52→   101→  maritalStatus: z.string().min(1, 'Select marital status'),
+    53→   102→  phone: z
+    54→   103→    .string()
+    55→   104→    .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian phone number'),
+    56→   105→  email: z.string().email('Enter a valid email address'),
+    57→   106→});
+    58→   107→
+    59→   108→const addressSchema = z.object({
+    60→   109→  address: z.string().min(5, 'Address must be at least 5 characters'),
+    61→   110→  state: z.string().min(1, 'Select a state'),
+    62→   111→  district: z.string().min(2, 'District is required'),
+    63→   112→  pincode: z
+    64→   113→    .string()
+    65→   114→    .regex(/^[1-9][0-9]{5}$/, 'Enter a valid 6-digit pincode'),
+    66→   115→});
+    67→   116→
+    68→   117→const incomeSchema = z.object({
+    69→   118→  occupation: z.string().min(2, 'Occupation is required'),
+    70→   119→  monthlyIncome: z.coerce.number().min(1, 'Monthly income is required'),
+    71→   120→  bankName: z.string().min(2, 'Bank name is required'),
+    72→   121→  bankAccount: z
+    73→   122→    .string()
+    74→   123→    .regex(/^\d{9,18}$/, 'Enter a valid bank account number (9-18 digits)'),
+    75→   124→  bankIfsc: z
+    76→   125→    .string()
+    77→   126→    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Enter a valid IFSC code (e.g. SBIN0001234)'),
+    78→   127→});
+    79→   128→
+    80→   129→const loanSchema = z.object({
+    81→   130→  loanAmount: z.coerce.number().min(10000, 'Minimum loan amount is ₹10,000'),
+    82→   131→  loanPurpose: z.string().min(1, 'Select a loan purpose'),
+    83→   132→  loanTenure: z.coerce.number().min(6, 'Select a tenure'),
+    84→   133→  schemeType: z.string().min(1, 'Select a scheme type'),
+    85→   134→});
+    86→   135→
+    87→   136→const consumptionSchema = z.object({
+    88→   137→  electricityConsistency: z.coerce.number().min(0).max(100),
+    89→   138→  mobileRechargeConsistency: z.coerce.number().min(0).max(100),
+    90→   139→  utilityPaymentHistory: z.coerce.number().min(0).max(100),
+    91→   140→  repaymentHistory: z.coerce.number().min(0).max(100),
+    92→   141→});
+    93→   142→
+    94→   143→const consentSchema = z.object({
+    95→   144→  consentCreditBureau: z.literal(true, {
+    96→   145→    errorMap: () => ({ message: 'You must consent to credit bureau check' }),
+    97→   146→  }),
+    98→   147→  consentDataSharing: z.literal(true, {
+    99→   148→    errorMap: () => ({ message: 'You must authorize data sharing with NBCFDC' }),
+   100→   149→  }),
+   101→   150→  consentAccuracy: z.literal(true, {
+   102→   151→    errorMap: () => ({ message: 'You must declare information accuracy' }),
+   103→   152→  }),
+   104→   153→});
+   105→   154→
+   106→   155→const fullSchema = personalSchema
+   107→   156→  .merge(addressSchema)
+   108→   157→  .merge(incomeSchema)
+   109→   158→  .merge(loanSchema)
+   110→   159→  .merge(consumptionSchema)
+   111→   160→  .merge(consentSchema);
+   112→   161→
+   113→   162→type ApplicationFormData = z.infer<typeof fullSchema>;
+   114→   163→
+   115→   164→// ─── Step field maps for per-step validation ────────────────────────────────
+   116→   165→
+   117→   166→const STEP_FIELDS: Record<number, (keyof ApplicationFormData)[]> = {
+   118→   167→  1: ['name', 'aadhaarNumber', 'panNumber', 'dateOfBirth', 'gender', 'category', 'educationLevel', 'maritalStatus', 'phone', 'email'],
+   119→   168→  2: ['address', 'state', 'district', 'pincode'],
+   120→   169→  3: ['occupation', 'monthlyIncome', 'bankName', 'bankAccount', 'bankIfsc'],
+   121→   170→  4: ['loanAmount', 'loanPurpose', 'loanTenure', 'schemeType'],
+   122→   171→  5: ['electricityConsistency', 'mobileRechargeConsistency', 'utilityPaymentHistory', 'repaymentHistory'],
+   123→   172→  6: ['consentCreditBureau', 'consentDataSharing', 'consentAccuracy'],
+   124→   173→};
+   125→   174→
+   126→   175→// ─── Step Content Components ─────────────────────────────────────────────────
+   127→   176→
+   128→   177→function PersonalInfoStep() {
+   129→   178→  const {
+   130→   179→    register,
+   131→   180→    setValue,
+   132→   181→    watch,
+   133→   182→    formState: { errors },
+   134→   183→  } = useFormContext<ApplicationFormData>();
+   135→   184→
+   136→   185→  return (
+   137→   186→    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   138→   187→      <div className="sm:col-span-2">
+   139→   188→        <Label htmlFor="name">Full Name</Label>
+   140→   189→        <Input id="name" placeholder="Enter full name" {...register('name')} className="mt-1.5" />
+   141→   190→        {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>}
+   142→   191→      </div>
+   143→   192→
+   144→   193→      <div>
+   145→   194→        <Label htmlFor="aadhaarNumber">Aadhaar Number</Label>
+   146→   195→        <Input
+   147→   196→          id="aadhaarNumber"
+   148→   197→          placeholder="12-digit Aadhaar"
+   149→   198→          maxLength={12}
+   150→   199→          {...register('aadhaarNumber')}
+   151→   200→          className="mt-1.5"
+   152→   201→        />
+   153→   202→        {errors.aadhaarNumber && (
+   154→   203→          <p className="mt-1 text-xs text-destructive">{errors.aadhaarNumber.message}</p>
+   155→   204→        )}
+   156→   205→      </div>
+   157→   206→
+   158→   207→      <div>
+   159→   208→        <Label htmlFor="panNumber">PAN Number</Label>
+   160→   209→        <Input
+   161→   210→          id="panNumber"
+   162→   211→          placeholder="ABCDE1234F"
+   163→   212→          {...register('panNumber')}
+   164→   213→          className="mt-1.5 uppercase"
+   165→   214→        />
+   166→   215→        {errors.panNumber && (
+   167→   216→          <p className="mt-1 text-xs text-destructive">{errors.panNumber.message}</p>
+   168→   217→        )}
+   169→   218→      </div>
+   170→   219→
+   171→   220→      <div>
+   172→   221→        <Label htmlFor="dateOfBirth">Date of Birth</Label>
+   173→   222→        <Input id="dateOfBirth" type="date" {...register('dateOfBirth')} className="mt-1.5" />
+   174→   223→        {errors.dateOfBirth && (
+   175→   224→          <p className="mt-1 text-xs text-destructive">{errors.dateOfBirth.message}</p>
+   176→   225→        )}
+   177→   226→      </div>
+   178→   227→
+   179→   228→      <div>
+   180→   229→        <Label htmlFor="gender">Gender</Label>
+   181→   230→        <Select value={watch('gender') || ''} onValueChange={(v) => setValue('gender', v, { shouldValidate: true })}>
+   182→   231→          <SelectTrigger className="mt-1.5 w-full">
+   183→   232→            <SelectValue placeholder="Select gender" />
+   184→   233→          </SelectTrigger>
+   185→   234→          <SelectContent>
+   186→   235→            {GENDER_OPTIONS.map((g) => (
+   187→   236→              <SelectItem key={g} value={g}>{g}</SelectItem>
+   188→   237→            ))}
+   189→   238→          </SelectContent>
+   190→   239→        </Select>
+   191→   240→        {errors.gender && <p className="mt-1 text-xs text-destructive">{errors.gender.message}</p>}
+   192→   241→      </div>
+   193→   242→
+   194→   243→      <div>
+   195→   244→        <Label htmlFor="category">Category</Label>
+   196→   245→        <Select value={watch('category') || ''} onValueChange={(v) => setValue('category', v, { shouldValidate: true })}>
+   197→   246→          <SelectTrigger className="mt-1.5 w-full">
+   198→   247→            <SelectValue placeholder="Select category" />
+   199→   248→          </SelectTrigger>
+   200→   249→          <SelectContent>
+   201→   250→            {CATEGORY_OPTIONS.map((c) => (
+   202→   251→              <SelectItem key={c} value={c}>{c}</SelectItem>
+   203→   252→            ))}
+   204→   253→          </SelectContent>
+   205→   254→        </Select>
+   206→   255→        {errors.category && <p className="mt-1 text-xs text-destructive">{errors.category.message}</p>}
+   207→   256→      </div>
+   208→   257→
+   209→   258→      <div>
+   210→   259→        <Label htmlFor="educationLevel">Education Level</Label>
+   211→   260→        <Select value={watch('educationLevel') || ''} onValueChange={(v) => setValue('educationLevel', v, { shouldValidate: true })}>
+   212→   261→          <SelectTrigger className="mt-1.5 w-full">
+   213→   262→            <SelectValue placeholder="Select education level" />
+   214→   263→          </SelectTrigger>
+   215→   264→          <SelectContent>
+   216→   265→            {EDUCATION_OPTIONS.map((e) => (
+   217→   266→              <SelectItem key={e} value={e}>{e}</SelectItem>
+   218→   267→            ))}
+   219→   268→          </SelectContent>
+   220→   269→        </Select>
+   221→   270→        {errors.educationLevel && (
+   222→   271→          <p className="mt-1 text-xs text-destructive">{errors.educationLevel.message}</p>
+   223→   272→        )}
+   224→   273→      </div>
+   225→   274→
+   226→   275→      <div>
+   227→   276→        <Label htmlFor="maritalStatus">Marital Status</Label>
+   228→   277→        <Select value={watch('maritalStatus') || ''} onValueChange={(v) => setValue('maritalStatus', v, { shouldValidate: true })}>
+   229→   278→          <SelectTrigger className="mt-1.5 w-full">
+   230→   279→            <SelectValue placeholder="Select marital status" />
+   231→   280→          </SelectTrigger>
+   232→   281→          <SelectContent>
+   233→   282→            {MARITAL_OPTIONS.map((m) => (
+   234→   283→              <SelectItem key={m} value={m}>{m}</SelectItem>
+   235→   284→            ))}
+   236→   285→          </SelectContent>
+   237→   286→        </Select>
+   238→   287→        {errors.maritalStatus && (
+   239→   288→          <p className="mt-1 text-xs text-destructive">{errors.maritalStatus.message}</p>
+   240→   289→        )}
+   241→   290→      </div>
+   242→   291→
+   243→   292→      <div>
+   244→   293→        <Label htmlFor="phone">Phone Number</Label>
+   245→   294→        <Input
+   246→   295→          id="phone"
+   247→   296→          type="tel"
+   248→   297→          placeholder="10-digit mobile number"
+   249→   298→          maxLength={10}
+   250→   299→          {...register('phone')}
+   251→   300→          className="mt-1.5"
+   252→   301→        />
+   253→   302→        {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>}
+   254→   303→      </div>
+   255→   304→
+   256→   305→      <div>
+   257→   306→        <Label htmlFor="email">Email Address</Label>
+   258→   307→        <Input id="email" type="email" placeholder="email@example.com" {...register('email')} className="mt-1.5" />
+   259→   308→        {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
+   260→   309→      </div>
+   261→   310→    </div>
+   262→   311→  );
+   263→   312→}
+   264→   313→
+   265→   314→function AddressStep() {
+   266→   315→  const {
+   267→   316→    register,
+   268→   317→    setValue,
+   269→   318→    watch,
+   270→   319→    formState: { errors },
+   271→   320→  } = useFormContext<ApplicationFormData>();
+   272→   321→
+   273→   322→  return (
+   274→   323→    <div className="grid grid-cols-1 gap-4">
+   275→   324→      <div>
+   276→   325→        <Label htmlFor="address">Full Address</Label>
+   277→   326→        <Textarea
+   278→   327→          id="address"
+   279→   328→          placeholder="House no., street, locality..."
+   280→   329→          rows={3}
+   281→   330→          {...register('address')}
+   282→   331→          className="mt-1.5"
+   283→   332→        />
+   284→   333→        {errors.address && <p className="mt-1 text-xs text-destructive">{errors.address.message}</p>}
+   285→   334→      </div>
+   286→   335→
+   287→   336→      <div>
+   288→   337→        <Label htmlFor="state">State</Label>
+   289→   338→        <Select value={watch('state') || ''} onValueChange={(v) => setValue('state', v, { shouldValidate: true })}>
+   290→   339→          <SelectTrigger className="mt-1.5 w-full">
+   291→   340→            <SelectValue placeholder="Select state" />
+   292→   341→          </SelectTrigger>
+   293→   342→          <SelectContent className="max-h-64">
+   294→   343→            {INDIAN_STATES.map((s) => (
+   295→   344→              <SelectItem key={s} value={s}>{s}</SelectItem>
+   296→   345→            ))}
+   297→   346→          </SelectContent>
+   298→   347→        </Select>
+   299→   348→        {errors.state && <p className="mt-1 text-xs text-destructive">{errors.state.message}</p>}
+   300→   349→      </div>
+   301→   350→
+   302→   351→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   303→   352→        <div>
+   304→   353→          <Label htmlFor="district">District</Label>
+   305→   354→          <Input id="district" placeholder="District name" {...register('district')} className="mt-1.5" />
+   306→   355→          {errors.district && (
+   307→   356→            <p className="mt-1 text-xs text-destructive">{errors.district.message}</p>
+   308→   357→          )}
+   309→   358→        </div>
+   310→   359→
+   311→   360→        <div>
+   312→   361→          <Label htmlFor="pincode">Pincode</Label>
+   313→   362→          <Input
+   314→   363→            id="pincode"
+   315→   364→            placeholder="6-digit pincode"
+   316→   365→            maxLength={6}
+   317→   366→            {...register('pincode')}
+   318→   367→            className="mt-1.5"
+   319→   368→          />
+   320→   369→          {errors.pincode && <p className="mt-1 text-xs text-destructive">{errors.pincode.message}</p>}
+   321→   370→        </div>
+   322→   371→      </div>
+   323→   372→    </div>
+   324→   373→  );
+   325→   374→}
+   326→   375→
+   327→   376→function IncomeStep() {
+   328→   377→  const {
+   329→   378→    register,
+   330→   379→    formState: { errors },
+   331→   380→  } = useFormContext<ApplicationFormData>();
+   332→   381→
+   333→   382→  return (
+   334→   383→    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   335→   384→      <div className="sm:col-span-2">
+   336→   385→        <Label htmlFor="occupation">Occupation</Label>
+   337→   386→        <Input id="occupation" placeholder="e.g. Farmer, Shopkeeper, Teacher" {...register('occupation')} className="mt-1.5" />
+   338→   387→        {errors.occupation && (
+   339→   388→          <p className="mt-1 text-xs text-destructive">{errors.occupation.message}</p>
+   340→   389→        )}
+   341→   390→      </div>
+   342→   391→
+   343→   392→      <div>
+   344→   393→        <Label htmlFor="monthlyIncome">Monthly Income</Label>
+   345→   394→        <Input id="monthlyIncome" type="number" placeholder="e.g. 15000" {...register('monthlyIncome')} className="mt-1.5" />
+   346→   395→        {errors.monthlyIncome && (
+   347→   396→          <p className="mt-1 text-xs text-destructive">{errors.monthlyIncome.message}</p>
+   348→   397→        )}
+   349→   398→      </div>
+   350→   399→
+   351→   400→      <div>
+   352→   401→        <Label htmlFor="bankName">Bank Name</Label>
+   353→   402→        <Input id="bankName" placeholder="e.g. State Bank of India" {...register('bankName')} className="mt-1.5" />
+   354→   403→        {errors.bankName && <p className="mt-1 text-xs text-destructive">{errors.bankName.message}</p>}
+   355→   404→      </div>
+   356→   405→
+   357→   406→      <div>
+   358→   407→        <Label htmlFor="bankAccount">Bank Account Number</Label>
+   359→   408→        <Input id="bankAccount" placeholder="9-18 digit account number" {...register('bankAccount')} className="mt-1.5" />
+   360→   409→        {errors.bankAccount && (
+   361→   410→          <p className="mt-1 text-xs text-destructive">{errors.bankAccount.message}</p>
+   362→   411→        )}
+   363→   412→      </div>
+   364→   413→
+   365→   414→      <div>
+   366→   415→        <Label htmlFor="bankIfsc">IFSC Code</Label>
+   367→   416→        <Input id="bankIfsc" placeholder="e.g. SBIN0001234" className="mt-1.5 uppercase" {...register('bankIfsc')} />
+   368→   417→        {errors.bankIfsc && <p className="mt-1 text-xs text-destructive">{errors.bankIfsc.message}</p>}
+   369→   418→      </div>
+   370→   419→    </div>
+   371→   420→  );
+   372→   421→}
+   373→   422→
+   374→   423→function LoanDetailsStep() {
+   375→   424→  const {
+   376→   425→    register,
+   377→   426→    setValue,
+   378→   427→    watch,
+   379→   428→    formState: { errors },
+   380→   429→  } = useFormContext<ApplicationFormData>();
+   381→   430→
+   382→   431→  const loanAmount = watch('loanAmount');
+   383→   432→
+   384→   433→  return (
+   385→   434→    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   386→   435→      <div>
+   387→   436→        <Label htmlFor="loanAmount">Loan Amount (₹)</Label>
+   388→   437→        <Input
+   389→   438→          id="loanAmount"
+   390→   439→          type="number"
+   391→   440→          placeholder="e.g. 100000"
+   392→   441→          min={10000}
+   393→   442→          {...register('loanAmount')}
+   394→   443→          className="mt-1.5"
+   395→   444→        />
+   396→   445→        {errors.loanAmount && (
+   397→   446→          <p className="mt-1 text-xs text-destructive">{errors.loanAmount.message}</p>
+   398→   447→        )}
+   399→   448→        {loanAmount && Number(loanAmount) >= 10000 && (
+   400→   449→          <p className="mt-1 text-xs text-muted-foreground">
+   401→   450→            {currencyFmt.format(Number(loanAmount))}
+   402→   451→          </p>
+   403→   452→        )}
+   404→   453→      </div>
+   405→   454→
+   406→   455→      <div>
+   407→   456→        <Label htmlFor="loanPurpose">Loan Purpose</Label>
+   408→   457→        <Select value={watch('loanPurpose') || ''} onValueChange={(v) => setValue('loanPurpose', v, { shouldValidate: true })}>
+   409→   458→          <SelectTrigger className="mt-1.5 w-full">
+   410→   459→            <SelectValue placeholder="Select purpose" />
+   411→   460→          </SelectTrigger>
+   412→   461→          <SelectContent>
+   413→   462→            {LOAN_PURPOSE_OPTIONS.map((p) => (
+   414→   463→              <SelectItem key={p} value={p}>{p}</SelectItem>
+   415→   464→            ))}
+   416→   465→          </SelectContent>
+   417→   466→        </Select>
+   418→   467→        {errors.loanPurpose && (
+   419→   468→          <p className="mt-1 text-xs text-destructive">{errors.loanPurpose.message}</p>
+   420→   469→        )}
+   421→   470→      </div>
+   422→   471→
+   423→   472→      <div>
+   424→   473→        <Label htmlFor="loanTenure">Loan Tenure</Label>
+   425→   474→        <Select value={watch('loanTenure') ? String(watch('loanTenure')) : ''} onValueChange={(v) => setValue('loanTenure', Number(v), { shouldValidate: true })}>
+   426→   475→          <SelectTrigger className="mt-1.5 w-full">
+   427→   476→            <SelectValue placeholder="Select tenure" />
+   428→   477→          </SelectTrigger>
+   429→   478→          <SelectContent>
+   430→   479→            {TENURE_OPTIONS.map((t) => (
+   431→   480→              <SelectItem key={t} value={t}>{t} months</SelectItem>
+   432→   481→            ))}
+   433→   482→          </SelectContent>
+   434→   483→        </Select>
+   435→   484→        {errors.loanTenure && (
+   436→   485→          <p className="mt-1 text-xs text-destructive">{errors.loanTenure.message}</p>
+   437→   486→        )}
+   438→   487→      </div>
+   439→   488→
+   440→   489→      <div>
+   441→   490→        <Label htmlFor="schemeType">Scheme Type</Label>
+   442→   491→        <Select value={watch('schemeType') || ''} onValueChange={(v) => setValue('schemeType', v, { shouldValidate: true })}>
+   443→   492→          <SelectTrigger className="mt-1.5 w-full">
+   444→   493→            <SelectValue placeholder="Select scheme" />
+   445→   494→          </SelectTrigger>
+   446→   495→          <SelectContent>
+   447→   496→            {SCHEME_OPTIONS.map((s) => (
+   448→   497→              <SelectItem key={s} value={s}>{s}</SelectItem>
+   449→   498→            ))}
+   450→   499→          </SelectContent>
+   451→   500→        </Select>
+   452→   501→        {errors.schemeType && (
+   453→   502→          <p className="mt-1 text-xs text-destructive">{errors.schemeType.message}</p>
+   454→   503→        )}
+   455→   504→      </div>
+   456→   505→    </div>
+   457→   506→  );
+   458→   507→}
+   459→   508→
+   460→   509→const CONSUMPTION_SLIDERS: {
+   461→   510→  key: keyof ApplicationFormData;
+   462→   511→  label: string;
+   463→   512→  description: string;
+   464→   513→}[] = [
+   465→   514→  { key: 'electricityConsistency', label: 'Electricity Payment Regularity', description: 'How consistently are electricity bills paid on time?' },
+   466→   515→  { key: 'mobileRechargeConsistency', label: 'Mobile Recharge Regularity', description: 'How regularly is the mobile phone recharged?' },
+   467→   516→  { key: 'utilityPaymentHistory', label: 'Other Utility Payment History', description: 'Track record for water, gas, and other utility payments' },
+   468→   517→  { key: 'repaymentHistory', label: 'Previous Repayment History', description: 'History of any previous loan repayments' },
+   469→   518→];
+   470→   519→
+   471→   520→function ConsumptionStep() {
+   472→   521→  const {
+   473→   522→    setValue,
+   474→   523→    watch,
+   475→   524→    formState: { errors },
+   476→   525→  } = useFormContext<ApplicationFormData>();
+   477→   526→
+   478→   527→  return (
+   479→   528→    <div className="grid grid-cols-1 gap-6">
+   480→   529→      {CONSUMPTION_SLIDERS.map(({ key, label, description }) => (
+   481→   530→        <div key={key} className="space-y-2">
+   482→   531→          <div className="flex items-center justify-between">
+   483→   532→            <div>
+   484→   533→              <Label className="text-sm font-medium">{label}</Label>
+   485→   534→              <p className="text-xs text-muted-foreground">{description}</p>
+   486→   535→            </div>
+   487→   536→            <Badge variant="outline" className="min-w-[3rem] justify-center font-mono text-sm">
+   488→   537→              {watch(key as string) ?? 50}
+   489→   538→            </Badge>
+   490→   539→          </div>
+   491→   540→          <Slider
+   492→   541→            min={0}
+   493→   542→            max={100}
+   494→   543→            step={1}
+   495→   544→            value={[Number(watch(key as string)) ?? 50]}
+   496→   545→            onValueChange={([v]) => setValue(key as keyof ApplicationFormData, v as number, { shouldValidate: true })}
+   497→   546→            className="w-full"
+   498→   547→          />
+   499→   548→          {errors[key] && (
+   500→   549→            <p className="text-xs text-destructive">{errors[key]?.message}</p>
+   501→   550→          )}
+   502→   551→        </div>
+   503→   552→      ))}
+   504→   553→    </div>
+   505→   554→  );
+   506→   555→}
+   507→   556→
+   508→   557→function ReviewStep() {
+   509→   558→  const { watch } = useFormContext<ApplicationFormData>();
+   510→   559→  const data = watch();
+   511→   560→
+   512→   561→  const sections = useMemo(
+   513→   562→    () => [
+   514→   563→      {
+   515→   564→        title: 'Personal Information',
+   516→   565→        icon: <User className="size-4" />,
+   517→   566→        items: [
+   518→   567→          { label: 'Full Name', value: data.name },
+   519→   568→          { label: 'Aadhaar', value: data.aadhaarNumber?.replace(/(\d{4})(?=\d)/g, '$1 ') ?? '—' },
+   520→   569→          { label: 'PAN', value: data.panNumber ?? '—' },
+   521→   570→          { label: 'Date of Birth', value: data.dateOfBirth },
+   522→   571→          { label: 'Gender', value: data.gender },
+   523→   572→          { label: 'Category', value: data.category },
+   524→   573→          { label: 'Education', value: data.educationLevel },
+   525→   574→          { label: 'Marital Status', value: data.maritalStatus },
+   526→   575→          { label: 'Phone', value: data.phone },
+   527→   576→          { label: 'Email', value: data.email },
+   528→   577→        ],
+   529→   578→      },
+   530→   579→      {
+   531→   580→        title: 'Address Details',
+   532→   581→        icon: <MapPin className="size-4" />,
+   533→   582→        items: [
+   534→   583→          { label: 'Address', value: data.address },
+   535→   584→          { label: 'State', value: data.state },
+   536→   585→          { label: 'District', value: data.district },
+   537→   586→          { label: 'Pincode', value: data.pincode },
+   538→   587→        ],
+   539→   588→      },
+   540→   589→      {
+   541→   590→        title: 'Income & Employment',
+   542→   591→        icon: <Briefcase className="size-4" />,
+   543→   592→        items: [
+   544→   593→          { label: 'Occupation', value: data.occupation },
+   545→   594→          { label: 'Monthly Income', value: data.monthlyIncome ? currencyFmt.format(Number(data.monthlyIncome)) : '—' },
+   546→   595→          { label: 'Bank Name', value: data.bankName },
+   547→   596→          { label: 'Bank Account', value: data.bankAccount?.replace(/(.{4})(?!$)/g, '$1 ') ?? '—' },
+   548→   597→          { label: 'IFSC Code', value: data.bankIfsc },
+   549→   598→        ],
+   550→   599→      },
+   551→   600→      {
+   552→   601→        title: 'Loan Details',
+   553→   602→        icon: <IndianRupee className="size-4" />,
+   554→   603→        items: [
+   555→   604→          { label: 'Loan Amount', value: data.loanAmount ? currencyFmt.format(Number(data.loanAmount)) : '—' },
+   556→   605→          { label: 'Purpose', value: data.loanPurpose },
+   557→   606→          { label: 'Tenure', value: data.loanTenure ? `${data.loanTenure} months` : '—' },
+   558→   607→          { label: 'Scheme', value: data.schemeType },
+   559→   608→        ],
+   560→   609→      },
+   561→   610→      {
+   562→   611→        title: 'Consumption Data',
+   563→   612→        icon: <Zap className="size-4" />,
+   564→   613→        items: [
+   565→   614→          { label: 'Electricity Regularity', value: `${data.electricityConsistency ?? 0}/100` },
+   566→   615→          { label: 'Mobile Recharge Regularity', value: `${data.mobileRechargeConsistency ?? 0}/100` },
+   567→   616→          { label: 'Utility Payment History', value: `${data.utilityPaymentHistory ?? 0}/100` },
+   568→   617→          { label: 'Repayment History', value: `${data.repaymentHistory ?? 0}/100` },
+   569→   618→        ],
+   570→   619→      },
+   571→   620→    ],
+   572→   621→    [data],
+   573→   622→  );
+   574→   623→
+   575→   624→  return (
+   576→   625→    <div className="space-y-6">
+   577→   626→      {/* Summary */}
+   578→   627→      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+   579→   628→        {sections.map((section) => (
+   580→   629→          <Card key={section.title}>
+   581→   630→            <CardHeader className="pb-3 pt-4 px-4">
+   582→   631→              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+   583→   632→                {section.icon}
+   584→   633→                {section.title}
+   585→   634→              </CardTitle>
+   586→   635→            </CardHeader>
+   587→   636→            <CardContent className="px-4 pb-4">
+   588→   637→              <div className="space-y-2">
+   589→   638→                {section.items.map((item) => (
+   590→   639→                  <div key={item.label} className="flex items-start justify-between gap-2">
+   591→   640→                    <span className="text-xs text-muted-foreground shrink-0">{item.label}</span>
+   592→   641→                    <span className="text-xs font-medium text-right break-all">{item.value || '—'}</span>
+   593→   642→                  </div>
+   594→   643→                ))}
+   595→   644→              </div>
+   596→   645→            </CardContent>
+   597→   646→          </Card>
+   598→   647→        ))}
+   599→   648→      </div>
+   600→   649→
+   601→   650→      {/* Consent checkboxes */}
+   602→   651→      <Separator />
+   603→   652→      <div className="space-y-4">
+   604→   653→        <h3 className="flex items-center gap-2 text-sm font-semibold">
+   605→   654→          <Shield className="size-4 text-primary" />
+   606→   655→          Consent & Declaration
+   607→   656→        </h3>
+   608→   657→        <ConsentCheckboxes />
+   609→   658→      </div>
+   610→   659→    </div>
+   611→   660→  );
+   612→   661→}
+   613→   662→
+   614→   663→function ConsentCheckboxes() {
+   615→   664→  const {
+   616→   665→    register,
+   617→   666→    formState: { errors },
+   618→   667→  } = useFormContext<ApplicationFormData>();
+   619→   668→
+   620→   669→  const items = [
+   621→   670→    { name: 'consentCreditBureau' as const, label: 'I consent to credit bureau check' },
+   622→   671→    { name: 'consentDataSharing' as const, label: 'I authorize data sharing with NBCFDC' },
+   623→   672→    { name: 'consentAccuracy' as const, label: 'I declare all information is accurate' },
+   624→   673→  ];
+   625→   674→
+   626→   675→  return (
+   627→   676→    <div className="space-y-3">
+   628→   677→      {items.map((item) => (
+   629→   678→        <div key={item.name} className="flex items-start gap-3">
+   630→   679→          <Checkbox
+   631→   680→            id={item.name}
+   632→   681→            {...register(item.name)}
+   633→   682→            className="mt-0.5"
+   634→   683→          />
+   635→   684→          <Label htmlFor={item.name} className="text-sm leading-snug cursor-pointer">
+   636→   685→            {item.label}
+   637→   686→          </Label>
+   638→   687→        </div>
+   639→   688→      ))}
+   640→   689→      {(errors.consentCreditBureau || errors.consentDataSharing || errors.consentAccuracy) && (
+   641→   690→        <p className="text-xs text-destructive">
+   642→   691→          All consents are required to submit the application.
+   643→   692→        </p>
+   644→   693→      )}
+   645→   694→    </div>
+   646→   695→  );
+   647→   696→}
+   648→   697→
+   649→   698→// ─── Success Overlay ─────────────────────────────────────────────────────────
+   650→   699→
+   651→   700→function SuccessOverlay({
+   652→   701→  score,
+   653→   702→  appNumber,
+   654→   703→  onClose,
+   655→   704→}: {
+   656→   705→  score: { totalScore: number; riskGrade: string; decisionType: string };
+   657→   706→  appNumber: string;
+   658→   707→  onClose: () => void;
+   659→   708→}) {
+   660→   709→  const gradeColor = useMemo(() => {
+   661→   710→    const grade = (score.riskGrade || '').toUpperCase();
+   662→   711→    if (grade.includes('A') || grade.includes('B')) return 'text-emerald-600';
+   663→   712→    if (grade.includes('C')) return 'text-amber-600';
+   664→   713→    return 'text-red-600';
+   665→   714→  }, [score.riskGrade]);
+   666→   715→
+   667→   716→  const decisionLabel = useMemo(() => {
+   668→   717→    switch (score.decisionType) {
+   669→   718→      case 'auto_approve':
+   670→   719→        return { label: 'Auto Approved', color: 'bg-emerald-100 text-emerald-800' };
+   671→   720→      case 'reject':
+   672→   721→        return { label: 'Rejected', color: 'bg-red-100 text-red-800' };
+   673→   722→      default:
+   674→   723→        return { label: 'Under Review', color: 'bg-amber-100 text-amber-800' };
+   675→   724→    }
+   676→   725→  }, [score.decisionType]);
+   677→   726→
+   678→   727→  return (
+   679→   728→    <motion.div
+   680→   729→      initial={{ opacity: 0 }}
+   681→   730→      animate={{ opacity: 1 }}
+   682→   731→      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+   683→   732→    >
+   684→   733→      <motion.div
+   685→   734→        initial={{ scale: 0.8, opacity: 0 }}
+   686→   735→        animate={{ scale: 1, opacity: 1 }}
+   687→   736→        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+   688→   737→        className="mx-4 w-full max-w-md"
+   689→   738→      >
+   690→   739→        <Card className="p-6 text-center">
+   691→   740→          <motion.div
+   692→   741→            initial={{ scale: 0 }}
+   693→   742→            animate={{ scale: 1 }}
+   694→   743→            transition={{ delay: 0.2, type: 'spring', damping: 15 }}
+   695→   744→            className="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-emerald-100"
+   696→   745→          >
+   697→   746→            <CheckCircle2 className="size-10 text-emerald-600" />
+   698→   747→          </motion.div>
+   699→   748→
+   700→   749→          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+   701→   750→            <h2 className="text-xl font-bold">Application Submitted!</h2>
+   702→   751→            <p className="mt-1 text-sm text-muted-foreground">
+   703→   752→              Application Number: <span className="font-mono font-semibold">{appNumber}</span>
+   704→   753→            </p>
+   705→   754→          </motion.div>
+   706→   755→
+   707→   756→          <motion.div
+   708→   757→            initial={{ opacity: 0, y: 10 }}
+   709→   758→            animate={{ opacity: 1, y: 0 }}
+   710→   759→            transition={{ delay: 0.6 }}
+   711→   760→            className="mt-6 space-y-4"
+   712→   761→          >
+   713→   762→            <div className="flex items-center justify-center gap-6">
+   714→   763→              <div className="text-center">
+   715→   764→                <p className="text-3xl font-bold font-mono">{score.totalScore}</p>
+   716→   765→                <p className="text-xs text-muted-foreground">Credit Score</p>
+   717→   766→              </div>
+   718→   767→              <Separator orientation="vertical" className="h-12" />
+   719→   768→              <div className="text-center">
+   720→   769→                <p className={`text-3xl font-bold font-mono ${gradeColor}`}>{score.riskGrade}</p>
+   721→   770→                <p className="text-xs text-muted-foreground">Risk Grade</p>
+   722→   771→              </div>
+   723→   772→            </div>
+   724→   773→
+   725→   774→            <Badge className={decisionLabel.color}>{decisionLabel.label}</Badge>
+   726→   775→          </motion.div>
+   727→   776→
+   728→   777→          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
+   729→   778→            <p className="mt-4 text-xs text-muted-foreground">
+   730→   779→              Redirecting to application details...
+   731→   780→            </p>
+   732→   781→          </motion.div>
+   733→   782→        </Card>
+   734→   783→      </motion.div>
+   735→   784→    </motion.div>
+   736→   785→  );
+   737→   786→}
+   738→   787→
+   739→   788→// ─── Main Wizard ────────────────────────────────────────────────────────────
+   740→   789→
+   741→   790→export function ApplicationWizard() {
+   742→   791→  const [currentStep, setCurrentStep] = useState(1);
+   743→   792→  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+   744→   793→  const [isSubmitting, setIsSubmitting] = useState(false);
+   745→   794→  const [submitError, setSubmitError] = useState<string | null>(null);
+   746→   795→  const [successResult, setSuccessResult] = useState<{
+   747→   796→    score: { totalScore: number; riskGrade: string; decisionType: string };
+   748→   797→    appNumber: string;
+   749→   798→  } | null>(null);
+   750→   799→
+   751→   800→  const token = useAuthStore((s) => s.token);
+   752→   801→  const navigate = useAppStore((s) => s.navigate);
+   753→   802→
+   754→   803→  const form = useForm<ApplicationFormData>({
+   755→   804→    resolver: zodResolver(fullSchema),
+   756→   805→    defaultValues: {
+   757→   806→      name: '',
+   758→   807→      aadhaarNumber: '',
+   759→   808→      panNumber: '',
+   760→   809→      dateOfBirth: '',
+   761→   810→      gender: '',
+   762→   811→      category: '',
+   763→   812→      educationLevel: '',
+   764→   813→      maritalStatus: '',
+   765→   814→      phone: '',
+   766→   815→      email: '',
+   767→   816→      address: '',
+   768→   817→      state: '',
+   769→   818→      district: '',
+   770→   819→      pincode: '',
+   771→   820→      occupation: '',
+   772→   821→      monthlyIncome: undefined,
+   773→   822→      bankName: '',
+   774→   823→      bankAccount: '',
+   775→   824→      bankIfsc: '',
+   776→   825→      loanAmount: undefined,
+   777→   826→      loanPurpose: '',
+   778→   827→      loanTenure: undefined,
+   779→   828→      schemeType: '',
+   780→   829→      electricityConsistency: 50,
+   781→   830→      mobileRechargeConsistency: 50,
+   782→   831→      utilityPaymentHistory: 50,
+   783→   832→      repaymentHistory: 50,
+   784→   833→      consentCreditBureau: false as unknown as true,
+   785→   834→      consentDataSharing: false as unknown as true,
+   786→   835→      consentAccuracy: false as unknown as true,
+   787→   836→    },
+   788→   837→    mode: 'onBlur',
+   789→   838→  });
+   790→   839→
+   791→   840→  const validateCurrentStep = useCallback(
+   792→   841→    async (step: number) => {
+   793→   842→      const fields = STEP_FIELDS[step];
+   794→   843→      if (!fields) return true;
+   795→   844→      return form.trigger(fields as string[]);
+   796→   845→    },
+   797→   846→    [form],
+   798→   847→  );
+   799→   848→
+   800→   849→  const goNext = useCallback(async () => {
+   801→   850→    const valid = await validateCurrentStep(currentStep);
+   802→   851→    if (valid) {
+   803→   852→      setDirection('forward');
+   804→   853→      setCurrentStep((s) => Math.min(s + 1, 6));
+   805→   854→    }
+   806→   855→  }, [currentStep, validateCurrentStep]);
+   807→   856→
+   808→   857→  const goBack = useCallback(() => {
+   809→   858→    setDirection('backward');
+   810→   859→    setCurrentStep((s) => Math.max(s - 1, 1));
+   811→   860→  }, []);
+   812→   861→
+   813→   862→  const handleSubmit = useCallback(async () => {
+   814→   863→    // Validate the last step (consent)
+   815→   864→    const valid = await validateCurrentStep(6);
+   816→   865→    if (!valid) return;
+   817→   866→
+   818→   867→    setIsSubmitting(true);
+   819→   868→    setSubmitError(null);
+   820→   869→
+   821→   870→    try {
+   822→   871→      const values = form.getValues();
+   823→   872→      const res = await fetch('/api/applications', {
+   824→   873→        method: 'POST',
+   825→   874→        headers: {
+   826→   875→          'Content-Type': 'application/json',
+   827→   876→          Authorization: `Bearer ${token}`,
+   828→   877→        },
+   829→   878→        body: JSON.stringify(values),
+   830→   879→      });
+   831→   880→
+   832→   881→      if (!res.ok) {
+   833→   882→        const errData = await res.json().catch(() => ({ error: 'Submission failed' }));
+   834→   883→        throw new Error(errData.error || `HTTP ${res.status}`);
+   835→   884→      }
+   836→   885→
+   837→   886→      const responseData = await res.json();
+   838→   887→      setSuccessResult({
+   839→   888→        score: responseData.score,
+   840→   889→        appNumber: responseData.application.applicationNumber,
+   841→   890→      });
+   842→   891→
+   843→   892→      // Navigate after 2 seconds
+   844→   893→      setTimeout(() => {
+   845→   894→        navigate('application-detail', { id: responseData.application.applicationNumber });
+   846→   895→      }, 2000);
+   847→   896→    } catch (err) {
+   848→   897→      setSubmitError(err instanceof Error ? err.message : 'Something went wrong');
+   849→   898→    } finally {
+   850→   899→      setIsSubmitting(false);
+   851→   900→    }
+   852→   901→  }, [form, token, validateCurrentStep, navigate]);
+   853→   902→
+   854→   903→  const progressValue = ((currentStep - 1) / 5) * 100;
+   855→   904→
+   856→   905→  const stepVariants = {
+   857→   906→    enter: (dir: 'forward' | 'backward') => ({
+   858→   907→      x: dir === 'forward' ? 300 : -300,
+   859→   908→      opacity: 0,
+   860→   909→    }),
+   861→   910→    center: {
+   862→   911→      x: 0,
+   863→   912→      opacity: 1,
+   864→   913→    },
+   865→   914→    exit: (dir: 'forward' | 'backward') => ({
+   866→   915→      x: dir === 'forward' ? -300 : 300,
+   867→   916→      opacity: 0,
+   868→   917→    }),
+   869→   918→  };
+   870→   919→
+   871→   920→  return (
+   872→   921→    <div className="mx-auto w-full max-w-4xl space-y-6">
+   873→   922→      {/* Header */}
+   874→   923→      <div>
+   875→   924→        <h1 className="text-2xl font-bold tracking-tight">New Loan Application</h1>
+   876→   925→        <p className="text-sm text-muted-foreground">Complete all steps to submit</p>
+   877→   926→      </div>
+   878→   927→
+   879→   928→      {/* Progress Bar */}
+   880→   929→      <Card className="overflow-hidden">
+   881→   930→        <CardContent className="p-4">
+   882→   931→          {/* Step indicators */}
+   883→   932→          <div className="mb-3 flex items-center justify-between">
+   884→   933→            {STEPS.map((step) => {
+   885→   934→              const StepIcon = step.icon;
+   886→   935→              const isCompleted = step.id < currentStep;
+   887→   936→              const isCurrent = step.id === currentStep;
+   888→   937→              return (
+   889→   938→                <div key={step.id} className="flex flex-1 flex-col items-center">
+   890→   939→                  <div
+   891→   940→                    className={`flex size-8 items-center justify-center rounded-full border-2 transition-colors ${
+   892→   941→                      isCompleted
+   893→   942→                        ? 'border-teal-500 bg-teal-500 text-white'
+   894→   943→                        : isCurrent
+   895→   944→                          ? 'border-teal-500 bg-white text-teal-600'
+   896→   945→                          : 'border-muted-foreground/30 bg-muted text-muted-foreground'
+   897→   946→                    }`}
+   898→   947→                  >
+   899→   948→                    {isCompleted ? (
+   900→   949→                      <CheckCircle2 className="size-4" />
+   901→   950→                    ) : (
+   902→   951→                      <StepIcon className="size-4" />
+   903→   952→                    )}
+   904→   953→                  </div>
+   905→   954→                  <span
+   906→   955→                    className={`mt-1 hidden text-[10px] font-medium sm:block ${
+   907→   956→                      isCompleted || isCurrent ? 'text-teal-600' : 'text-muted-foreground'
+   908→   957→                    }`}
+   909→   958→                  >
+   910→   959→                    {step.name}
+   911→   960→                  </span>
+   912→   961→                </div>
+   913→   962→              );
+   914→   963→            })}
+   915→   964→          </div>
+   916→   965→          <Progress value={progressValue} className="h-2" />
+   917→   966→          <p className="mt-1.5 text-center text-xs text-muted-foreground">
+   918→   967→            Step {currentStep} of 6 — {STEPS[currentStep - 1].name}
+   919→   968→          </p>
+   920→   969→        </CardContent>
+   921→   970→      </Card>
+   922→   971→
+   923→   972→      {/* Step Card */}
+   924→   973→      <Form {...form}>
+   925→   974→      <Card>
+   926→   975→        <CardHeader className="pb-2">
+   927→   976→          <CardTitle className="flex items-center gap-2 text-base">
+   928→   977→            {(() => {
+   929→   978→              const StepIcon = STEPS[currentStep - 1].icon;
+   930→   979→              return <StepIcon className="size-5 text-teal-600" />;
+   931→   980→            })()}
+   932→   981→            {STEPS[currentStep - 1].name}
+   933→   982→          </CardTitle>
+   934→   983→        </CardHeader>
+   935→   984→        <CardContent className="pt-4">
+   936→   985→          <AnimatePresence mode="wait" custom={direction}>
+   937→   986→            <motion.div
+   938→   987→              key={currentStep}
+   939→   988→              custom={direction}
+   940→   989→              variants={stepVariants}
+   941→   990→              initial="enter"
+   942→   991→              animate="center"
+   943→   992→              exit="exit"
+   944→   993→              transition={{ duration: 0.25, ease: 'easeInOut' }}
+   945→   994→            >
+   946→   995→              {currentStep === 1 && <PersonalInfoStep />}
+   947→   996→              {currentStep === 2 && <AddressStep />}
+   948→   997→              {currentStep === 3 && <IncomeStep />}
+   949→   998→              {currentStep === 4 && <LoanDetailsStep />}
+   950→   999→              {currentStep === 5 && <ConsumptionStep />}
+   951→  1000→              {currentStep === 6 && <ReviewStep />}
+   952→  1001→            </motion.div>
+   953→  1002→          </AnimatePresence>
+   954→  1003→
+   955→  1004→          {submitError && (
+   956→  1005→            <motion.div
+   957→  1006→              initial={{ opacity: 0, y: 5 }}
+   958→  1007→              animate={{ opacity: 1, y: 0 }}
+   959→  1008→              className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+   960→  1009→            >
+   961→  1010→              {submitError}
+   962→  1011→            </motion.div>
+   963→  1012→          )}
+   964→  1013→        </CardContent>
+   965→  1014→      </Card>
+   966→  1015→      </Form>
+   967→  1016→
+   968→  1017→      {/* Navigation Buttons */}
+   969→  1018→      <div className="flex items-center justify-between">
+   970→  1019→        <Button
+   971→  1020→          type="button"
+   972→  1021→          variant="outline"
+   973→  1022→          onClick={goBack}
+   974→  1023→          disabled={currentStep === 1 || isSubmitting}
+   975→  1024→        >
+   976→  1025→          <ArrowLeft className="mr-2 size-4" />
+   977→  1026→          Back
+   978→  1027→        </Button>
+   979→  1028→
+   980→  1029→        <div className="flex gap-2">
+   981→  1030→          {currentStep < 6 ? (
+   982→  1031→            <Button type="button" onClick={goNext} disabled={isSubmitting}>
+   983→  1032→              Next
+   984→  1033→              <ArrowRight className="ml-2 size-4" />
+   985→  1034→            </Button>
+   986→  1035→          ) : (
+   987→  1036→            <Button
+   988→  1037→              type="button"
+   989→  1038→              onClick={handleSubmit}
+   990→  1039→              disabled={isSubmitting}
+   991→  1040→              className="bg-teal-600 hover:bg-teal-700"
+   992→  1041→            >
+   993→  1042→              {isSubmitting ? (
+   994→  1043→                <>
+   995→  1044→                  <Loader2 className="mr-2 size-4 animate-spin" />
+   996→  1045→                  Submitting...
+   997→  1046→                </>
+   998→  1047→              ) : (
+   999→  1048→                <>
+  1000→  1049→                  <Shield className="mr-2 size-4" />
+  1001→  1050→                  Submit Application
+  1002→  1051→                </>
+  1003→  1052→              )}
+  1004→  1053→            </Button>
+  1005→  1054→          )}
+  1006→  1055→        </div>
+  1007→  1056→      </div>
+  1008→  1057→
+  1009→  1058→      {/* Loading overlay */}
+  1010→  1059→      <AnimatePresence>
+  1011→  1060→        {isSubmitting && (
+  1012→  1061→          <motion.div
+  1013→  1062→            initial={{ opacity: 0 }}
+  1014→  1063→            animate={{ opacity: 1 }}
+  1015→  1064→            exit={{ opacity: 0 }}
+  1016→  1065→            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/40 backdrop-blur-sm"
+  1017→  1066→          >
+  1018→  1067→            <motion.div
+  1019→  1068→              animate={{ rotate: 360 }}
+  1020→  1069→              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+  1021→  1070→            >
+  1022→  1071→              <Loader2 className="size-10 text-white" />
+  1023→  1072→            </motion.div>
+  1024→  1073→            <p className="text-sm font-medium text-white">Processing application...</p>
+  1025→  1074→          </motion.div>
+  1026→  1075→        )}
+  1027→  1076→      </AnimatePresence>
+  1028→  1077→
+  1029→  1078→      {/* Success overlay */}
+  1030→  1079→      {successResult && (
+  1031→  1080→        <SuccessOverlay
+  1032→  1081→          score={successResult.score}
+  1033→  1082→          appNumber={successResult.appNumber}
+  1034→  1083→          onClose={() => setSuccessResult(null)}
+  1035→  1084→        />
+  1036→  1085→      )}
+  1037→  1086→    </div>
+  1038→  1087→  );
+  1039→  1088→}
+  1040→  1089→
+  1041→  1090→export default ApplicationWizard;
+  1042→  1091→
