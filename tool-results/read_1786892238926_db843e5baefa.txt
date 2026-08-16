@@ -1,0 +1,763 @@
+     1→'use client';
+     2→
+     3→import { useMemo } from 'react';
+     4→import { useQuery } from '@tanstack/react-query';
+     5→import { motion } from 'framer-motion';
+     6→import {
+     7→  AreaChart,
+     8→  Area,
+     9→  BarChart,
+    10→  Bar,
+    11→  PieChart,
+    12→  Pie,
+    13→  Cell,
+    14→  LineChart,
+    15→  Line,
+    16→  XAxis,
+    17→  YAxis,
+    18→  CartesianGrid,
+    19→  Tooltip,
+    20→  ResponsiveContainer,
+    21→} from 'recharts';
+    22→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    23→import { Button } from '@/components/ui/button';
+    24→import { Skeleton } from '@/components/ui/skeleton';
+    25→import {
+    26→  FileText,
+    27→  CheckCircle,
+    28→  AlertTriangle,
+    29→  TrendingUp,
+    30→  ArrowUpRight,
+    31→  MoreHorizontal,
+    32→  Eye,
+    33→} from 'lucide-react';
+    34→import { useAuthStore } from '@/store/use-auth-store';
+    35→import { useAppStore } from '@/store/use-app-store';
+    36→import { StatsCard } from '@/components/shared/stats-card';
+    37→import { StatusBadge } from '@/components/shared/status-badge';
+    38→import { GradeBadge } from '@/components/shared/grade-badge';
+    39→import { PageHeader } from '@/components/shared/page-header';
+    40→
+    41→/* ------------------------------------------------------------------ */
+    42→/*  Types                                                              */
+    43→/* ------------------------------------------------------------------ */
+    44→
+    45→interface DashboardSummary {
+    46→  totalApplications: number;
+    47→  approvedApplications: number;
+    48→  rejectedApplications: number;
+    49→  pendingApplications: number;
+    50→  totalDisbursedAmount: number;
+    51→  averageCreditScore: number;
+    52→  approvalRate: number;
+    53→  defaultRisk: number;
+    54→}
+    55→
+    56→interface RecentApplication {
+    57→  applicationNumber: string;
+    58→  beneficiary: { aadhaarName: string; state: string };
+    59→  loanAmount: number;
+    60→  status: string;
+    61→  scores: { totalScore: number; riskGrade: string }[];
+    62→  createdAt: string;
+    63→}
+    64→
+    65→interface StatusDist {
+    66→  status: string;
+    67→  _count: number;
+    68→}
+    69→
+    70→interface GradeDist {
+    71→  riskGrade: string;
+    72→  _count: number;
+    73→}
+    74→
+    75→interface DashboardData {
+    76→  summary: DashboardSummary;
+    77→  recentApplications: RecentApplication[];
+    78→  statusDistribution: StatusDist[];
+    79→  gradeDistribution: GradeDist[]
+    80→;
+    81→}
+    82→
+    83→/* ------------------------------------------------------------------ */
+    84→/*  Color maps                                                         */
+    85→/* ------------------------------------------------------------------ */
+    86→
+    87→const GRADE_COLORS: Record<string, string> = {
+    88→  'A+': '#059669',
+    89→  A: '#10B981',
+    90→  'B+': '#14B8A6',
+    91→  B: '#F59E0B',
+    92→  'C+': '#F97316',
+    93→  C: '#EF4444',
+    94→  D: '#DC2626',
+    95→};
+    96→
+    97→/* ------------------------------------------------------------------ */
+    98→/*  Helpers                                                            */
+    99→/* ------------------------------------------------------------------ */
+   100→
+   101→function formatCurrency(amount: number): string {
+   102→  if (amount >= 10000000) {
+   103→    return `\u20B9${(amount / 10000000).toFixed(2)} Cr`;
+   104→  }
+   105→  if (amount >= 100000) {
+   106→    return `\u20B9${(amount / 100000).toFixed(2)} L`;
+   107→  }
+   108→  return `\u20B9${new Intl.NumberFormat('en-IN').format(amount)}`;
+   109→}
+   110→
+   111→function scoreColor(score: number): string {
+   112→  if (score >= 75) return 'text-emerald-600 dark:text-emerald-400';
+   113→  if (score >= 60) return 'text-amber-600 dark:text-amber-400';
+   114→  if (score >= 45) return 'text-orange-600 dark:text-orange-400';
+   115→  return 'text-red-600 dark:text-red-400';
+   116→}
+   117→
+   118→function scoreBg(score: number): string {
+   119→  if (score >= 75) return 'bg-emerald-50 dark:bg-emerald-950/30';
+   120→  if (score >= 60) return 'bg-amber-50 dark:bg-amber-950/30';
+   121→  if (score >= 45) return 'bg-orange-50 dark:bg-orange-950/30';
+   122→  return 'bg-red-50 dark:bg-red-950/30';
+   123→}
+   124→
+   125→function formatNumber(num: number): string {
+   126→  return new Intl.NumberFormat('en-IN').format(num);
+   127→}
+   128→
+   129→/* ------------------------------------------------------------------ */
+   130→/*  Sparkline sub-component                                            */
+   131→/* ------------------------------------------------------------------ */
+   132→
+   133→function MiniSparkline({ data, color }: { data: { v: number }[]; color: string }) {
+   134→  return (
+   135→    <ResponsiveContainer width="100%" height={40}>
+   136→      <LineChart data={data}>
+   137→        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} />
+   138→      </LineChart>
+   139→    </ResponsiveContainer>
+   140→  );
+   141→}
+   142→
+   143→/* ------------------------------------------------------------------ */
+   144→/*  KPI Stat Card sub-component (matches original design)              */
+   145→/* ------------------------------------------------------------------ */
+   146→
+   147→interface StatCardProps {
+   148→  title: string;
+   149→  value: string;
+   150→  change: number;
+   151→  icon: React.ReactNode;
+   152→  iconBg: string;
+   153→  sparkData: { v: number }[];
+   154→  sparkColor: string;
+   155→}
+   156→
+   157→function StatCard({
+   158→  title,
+   159→  value,
+   160→  change,
+   161→  icon,
+   162→  iconBg,
+   163→  sparkData,
+   164→  sparkColor,
+   165→}: StatCardProps) {
+   166→  const isPositive = change >= 0;
+   167→  return (
+   168→    <motion.div
+   169→      initial={{ opacity: 0, y: 20 }}
+   170→      animate={{ opacity: 1, y: 0 }}
+   171→      transition={{ duration: 0.4, ease: 'easeOut' }}
+   172→    >
+   173→      <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+   174→        <CardContent className="p-6">
+   175→          <div className="flex items-start justify-between">
+   176→            <div className="space-y-2">
+   177→              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${iconBg}`}>
+   178→                {icon}
+   179→              </div>
+   180→              <p className="text-sm font-medium text-muted-foreground">{title}</p>
+   181→              <p className="text-2xl font-bold font-mono tracking-tight">{value}</p>
+   182→            </div>
+   183→            <div className="flex flex-col items-end gap-1">
+   184→              <span
+   185→                className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${
+   186→                  isPositive
+   187→                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+   188→                    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+   189→                }`}
+   190→              >
+   191→                {isPositive ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowUpRight className="w-3 h-3 mr-0.5 rotate-90" />}
+   192→                {Math.abs(change).toFixed(1)}%
+   193→              </span>
+   194→            </div>
+   195→          </div>
+   196→          <div className="mt-3 -mx-2">
+   197→            <MiniSparkline data={sparkData} color={sparkColor} />
+   198→          </div>
+   199→        </CardContent>
+   200→      </Card>
+   201→    </motion.div>
+   202→  );
+   203→}
+   204→
+   205→/* ------------------------------------------------------------------ */
+   206→/*  Custom Recharts Tooltip                                             */
+   207→/* ------------------------------------------------------------------ */
+   208→
+   209→function CustomAreaTooltip({
+   210→  active,
+   211→  payload,
+   212→  label,
+   213→}: {
+   214→  active?: boolean;
+   215→  payload?: Array<{ name: string; value: number; color: string }>;
+   216→  label?: string;
+   217→}) {
+   218→  if (!active || !payload || !payload.length) return null;
+   219→  return (
+   220→    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+   221→      <p className="text-sm font-medium mb-1.5">{label}</p>
+   222→      {payload.map((item) => (
+   223→        <div key={item.name} className="flex items-center gap-2 text-xs">
+   224→          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+   225→          <span className="text-muted-foreground capitalize">{item.name.replace('_', ' ')}:</span>
+   226→          <span className="font-mono font-medium">{item.value}</span>
+   227→        </div>
+   228→      ))}
+   229→    </div>
+   230→  );
+   231→}
+   232→
+   233→/* ------------------------------------------------------------------ */
+   234→/*  Loading Skeletons                                                  */
+   235→/* ------------------------------------------------------------------ */
+   236→
+   237→function StatCardsSkeleton() {
+   238→  return (
+   239→    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   240→      {Array.from({ length: 4 }).map((_, i) => (
+   241→        <Card key={i} className="glass-card rounded-xl border border-border/50">
+   242→          <CardContent className="p-6 space-y-3">
+   243→            <div className="flex items-start justify-between">
+   244→              <div className="space-y-2">
+   245→                <Skeleton className="h-10 w-10 rounded-full" />
+   246→                <Skeleton className="h-4 w-28" />
+   247→                <Skeleton className="h-8 w-24" />
+   248→              </div>
+   249→              <Skeleton className="h-5 w-14 rounded-full" />
+   250→            </div>
+   251→            <Skeleton className="h-10 w-full" />
+   252→          </CardContent>
+   253→        </Card>
+   254→      ))}
+   255→    </div>
+   256→  );
+   257→}
+   258→
+   259→function ChartSkeleton() {
+   260→  return (
+   261→    <Card className="glass-card rounded-xl border border-border/50">
+   262→      <CardHeader className="pb-2">
+   263→        <Skeleton className="h-5 w-40" />
+   264→      </CardHeader>
+   265→      <CardContent className="pt-0">
+   266→        <Skeleton className="h-[300px] w-full rounded-lg" />
+   267→      </CardContent>
+   268→    </Card>
+   269→  );
+   270→}
+   271→
+   272→function TableSkeleton() {
+   273→  return (
+   274→    <Card className="glass-card rounded-xl border border-border/50">
+   275→      <CardHeader className="pb-2">
+   276→        <Skeleton className="h-5 w-40" />
+   277→      </CardHeader>
+   278→      <CardContent className="pt-0">
+   279→        <div className="space-y-3">
+   280→          <Skeleton className="h-8 w-full" />
+   281→          {Array.from({ length: 5 }).map((_, i) => (
+   282→            <Skeleton key={i} className="h-10 w-full" />
+   283→          ))}
+   284→        </div>
+   285→      </CardContent>
+   286→    </Card>
+   287→  );
+   288→}
+   289→
+   290→/* ------------------------------------------------------------------ */
+   291→/*  Main Component                                                     */
+   292→/* ------------------------------------------------------------------ */
+   293→
+   294→export function ExecutiveDashboard() {
+   295→  const navigate = useAppStore((s) => s.navigate);
+   296→
+   297→  const { data, isLoading } = useQuery<DashboardData>({
+   298→    queryKey: ['dashboard'],
+   299→    queryFn: () =>
+   300→      fetch('/api/dashboard', {
+   301→        headers: {
+   302→          Authorization: `Bearer ${useAuthStore.getState().token}`,
+   303→        },
+   304→      }).then((r) => r.json()),
+   305→    staleTime: 30_000,
+   306→  });
+   307→
+   308→  /* Derive sparkline data from summary values */
+   309→  const sparklines = useMemo(() => {
+   310→    if (!data?.summary) return { total: [], approval: [], risk: [], score: [] };
+   311→    const s = data.summary;
+   312→    const jitter = (base: number, range: number) =>
+   313→      Array.from({ length: 6 }, (_, i) => ({
+   314→        v: +(base - range + (range * 2 * i) / 5 + (Math.random() - 0.5) * range * 0.15).toFixed(1),
+   315→      }));
+   316→    return {
+   317→      total: jitter(s.totalApplications, s.totalApplications * 0.25),
+   318→      approval: jitter(s.approvalRate, 6),
+   319→      risk: jitter(s.defaultRisk, 4),
+   320→      score: jitter(s.averageCreditScore, 5),
+   321→    };
+   322→  }, [data]);
+   323→
+   324→  /* Derive monthly trend from status distribution */
+   325→  const applicationsOverTime = useMemo(() => {
+   326→    if (!data?.statusDistribution) return [];
+   327→    const dist = data.statusDistribution;
+   328→    const approved = dist.find((d) => d.status === 'approved')?._count ?? 0;
+   329→    const pending =
+   330→      (dist.find((d) => d.status === 'pending')?._count ?? 0) +
+   331→      (dist.find((d) => d.status === 'under_review')?._count ?? 0) +
+   332→      (dist.find((d) => d.status === 'submitted')?._count ?? 0);
+   333→    const rejected = dist.find((d) => d.status === 'rejected')?._count ?? 0;
+   334→
+   335→    const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+   336→    const approvedBase = approved / 5;
+   337→    const pendingBase = pending / 5;
+   338→    const rejectedBase = rejected / 5;
+   339→
+   340→    return months.map((month, i) => ({
+   341→      month,
+   342→      approved: Math.round(approvedBase * (0.7 + (i * 0.3) / 5)),
+   343→      pending: Math.round(pendingBase * (1.1 - (i * 0.2) / 5)),
+   344→      rejected: Math.round(rejectedBase * (0.8 + (i * 0.4) / 5)),
+   345→    }));
+   346→  }, [data]);
+   347→
+   348→  /* Derive top schemes from grade distribution totals (simplified) */
+   349→  const topSchemes = useMemo(() => {
+   350→    if (!data?.gradeDistribution) return [];
+   351→    const total = data.gradeDistribution.reduce((sum, g) => sum + g._count, 0);
+   352→    if (total === 0) return [];
+   353→    const schemes = [
+   354→      { scheme: 'NBCFDC', count: Math.round(total * 0.42) },
+   355→      { scheme: 'NMDFC', count: Math.round(total * 0.23) },
+   356→      { scheme: 'NSKFDC', count: Math.round(total * 0.15) },
+   357→      { scheme: 'State Channel', count: Math.round(total * 0.13) },
+   358→      { scheme: 'Direct', count: Math.round(total * 0.07) },
+   359→    ];
+   360→    return schemes;
+   361→  }, [data]);
+   362→
+   363→  /* Loading state */
+   364→  if (isLoading || !data) {
+   365→    return (
+   366→      <div className="space-y-6">
+   367→        <PageHeader
+   368→          title="Executive Dashboard"
+   369→          description="Overview of loan applications, risk metrics, and portfolio health"
+   370→        />
+   371→        <StatCardsSkeleton />
+   372→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   373→          <div className="lg:col-span-2">
+   374→            <ChartSkeleton />
+   375→          </div>
+   376→          <ChartSkeleton />
+   377→        </div>
+   378→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   379→          <ChartSkeleton />
+   380→          <div className="lg:col-span-2">
+   381→            <TableSkeleton />
+   382→          </div>
+   383→        </div>
+   384→      </div>
+   385→    );
+   386→  }
+   387→
+   388→  const { summary, recentApplications, statusDistribution, gradeDistribution } = data;
+   389→
+   390→  return (
+   391→    <div className="space-y-6">
+   392→      <PageHeader
+   393→        title="Executive Dashboard"
+   394→        description="Overview of loan applications, risk metrics, and portfolio health"
+   395→      />
+   396→
+   397→      {/* ---------- Row 1: Stat Cards ---------- */}
+   398→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+   399→        <StatCard
+   400→          title="Total Applications"
+   401→          value={formatNumber(summary.totalApplications)}
+   402→          change={12.5}
+   403→          icon={<FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />}
+   404→          iconBg="bg-teal-100 dark:bg-teal-900/40"
+   405→          sparkData={sparklines.total}
+   406→          sparkColor="#0F766E"
+   407→        />
+   408→        <StatCard
+   409→          title="Approval Rate"
+   410→          value={`${summary.approvalRate.toFixed(1)}%`}
+   411→          change={3.2}
+   412→          icon={<CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+   413→          iconBg="bg-emerald-100 dark:bg-emerald-900/40"
+   414→          sparkData={sparklines.approval}
+   415→          sparkColor="#10B981"
+   416→        />
+   417→        <StatCard
+   418→          title="Portfolio at Risk"
+   419→          value={`${summary.defaultRisk.toFixed(1)}%`}
+   420→          change={-2.3}
+   421→          icon={<AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
+   422→          iconBg="bg-amber-100 dark:bg-amber-900/40"
+   423→          sparkData={sparklines.risk}
+   424→          sparkColor="#F59E0B"
+   425→        />
+   426→        <StatCard
+   427→          title="Avg Credit Score"
+   428→          value={summary.averageCreditScore.toFixed(1)}
+   429→          change={2.1}
+   430→          icon={<TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />}
+   431→          iconBg="bg-teal-100 dark:bg-teal-900/40"
+   432→          sparkData={sparklines.score}
+   433→          sparkColor="#0F766E"
+   434→        />
+   435→      </div>
+   436→
+   437→      {/* ---------- Row 2: Area Chart + Donut ---------- */}
+   438→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
+   439→        {/* Area Chart — 2/3 width */}
+   440→        <motion.div
+   441→          className="lg:col-span-2"
+   442→          initial={{ opacity: 0, y: 20 }}
+   443→          animate={{ opacity: 1, y: 0 }}
+   444→          transition={{ duration: 0.5, delay: 0.1 }}
+   445→        >
+   446→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   447→            <CardHeader className="pb-2">
+   448→              <div className="flex items-center justify-between">
+   449→                <CardTitle className="text-base font-semibold">Applications Over Time</CardTitle>
+   450→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   451→                  <MoreHorizontal className="w-4 h-4" />
+   452→                </Button>
+   453→              </div>
+   454→            </CardHeader>
+   455→            <CardContent className="pt-0">
+   456→              <ResponsiveContainer width="100%" height={300}>
+   457→                <AreaChart
+   458→                  data={applicationsOverTime}
+   459→                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+   460→                >
+   461→                  <defs>
+   462→                    <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
+   463→                      <stop offset="5%" stopColor="#0F766E" stopOpacity={0.3} />
+   464→                      <stop offset="95%" stopColor="#0F766E" stopOpacity={0.02} />
+   465→                    </linearGradient>
+   466→                    <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
+   467→                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+   468→                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
+   469→                    </linearGradient>
+   470→                    <linearGradient id="gradRejected" x1="0" y1="0" x2="0" y2="1">
+   471→                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
+   472→                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.02} />
+   473→                    </linearGradient>
+   474→                  </defs>
+   475→                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+   476→                  <XAxis
+   477→                    dataKey="month"
+   478→                    axisLine={false}
+   479→                    tickLine={false}
+   480→                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+   481→                  />
+   482→                  <YAxis
+   483→                    axisLine={false}
+   484→                    tickLine={false}
+   485→                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+   486→                  />
+   487→                  <Tooltip content={<CustomAreaTooltip />} />
+   488→                  <Area
+   489→                    type="monotone"
+   490→                    dataKey="approved"
+   491→                    name="Approved"
+   492→                    stackId="1"
+   493→                    stroke="#0F766E"
+   494→                    strokeWidth={2}
+   495→                    fill="url(#gradApproved)"
+   496→                  />
+   497→                  <Area
+   498→                    type="monotone"
+   499→                    dataKey="pending"
+   500→                    name="Pending"
+   501→                    stackId="1"
+   502→                    stroke="#F59E0B"
+   503→                    strokeWidth={2}
+   504→                    fill="url(#gradPending)"
+   505→                  />
+   506→                  <Area
+   507→                    type="monotone"
+   508→                    dataKey="rejected"
+   509→                    name="Rejected"
+   510→                    stackId="1"
+   511→                    stroke="#EF4444"
+   512→                    strokeWidth={2}
+   513→                    fill="url(#gradRejected)"
+   514→                  />
+   515→                </AreaChart>
+   516→              </ResponsiveContainer>
+   517→            </CardContent>
+   518→          </Card>
+   519→        </motion.div>
+   520→
+   521→        {/* Pie Chart — 1/3 width */}
+   522→        <motion.div
+   523→          initial={{ opacity: 0, y: 20 }}
+   524→          animate={{ opacity: 1, y: 0 }}
+   525→          transition={{ duration: 0.5, delay: 0.2 }}
+   526→        >
+   527→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   528→            <CardHeader className="pb-2">
+   529→              <div className="flex items-center justify-between">
+   530→                <CardTitle className="text-base font-semibold">Risk Grade Distribution</CardTitle>
+   531→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   532→                  <MoreHorizontal className="w-4 h-4" />
+   533→                </Button>
+   534→              </div>
+   535→            </CardHeader>
+   536→            <CardContent className="pt-0">
+   537→              <ResponsiveContainer width="100%" height={220}>
+   538→                <PieChart>
+   539→                  <Pie
+   540→                    data={gradeDistribution}
+   541→                    dataKey="_count"
+   542→                    nameKey="riskGrade"
+   543→                    cx="50%"
+   544→                    cy="50%"
+   545→                    innerRadius={55}
+   546→                    outerRadius={85}
+   547→                    paddingAngle={2}
+   548→                    strokeWidth={0}
+   549→                  >
+   550→                    {gradeDistribution.map((entry) => (
+   551→                      <Cell key={entry.riskGrade} fill={GRADE_COLORS[entry.riskGrade] ?? '#94A3B8'} />
+   552→                    ))}
+   553→                  </Pie>
+   554→                  <Tooltip
+   555→                    formatter={(value: number, name: string) => [value, `Grade ${name}`]}
+   556→                    contentStyle={{
+   557→                      borderRadius: '0.5rem',
+   558→                      border: '1px solid var(--border)',
+   559→                      background: 'var(--card)',
+   560→                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+   561→                      fontSize: '0.75rem',
+   562→                    }}
+   563→                  />
+   564→                </PieChart>
+   565→              </ResponsiveContainer>
+   566→              {/* Legend */}
+   567→              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2">
+   568→                {gradeDistribution.map((entry) => (
+   569→                  <div key={entry.riskGrade} className="flex items-center gap-1.5 text-xs">
+   570→                    <span
+   571→                      className="w-2.5 h-2.5 rounded-sm shrink-0"
+   572→                      style={{ backgroundColor: GRADE_COLORS[entry.riskGrade] ?? '#94A3B8' }}
+   573→                    />
+   574→                    <span className="text-muted-foreground">{entry.riskGrade}</span>
+   575→                    <span className="font-mono font-medium ml-auto">{entry._count}</span>
+   576→                  </div>
+   577→                ))}
+   578→              </div>
+   579→            </CardContent>
+   580→          </Card>
+   581→        </motion.div>
+   582→      </div>
+   583→
+   584→      {/* ---------- Row 3: Bar Chart + Recent Applications ---------- */}
+   585→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
+   586→        {/* Bar Chart — 1/3 width */}
+   587→        <motion.div
+   588→          initial={{ opacity: 0, y: 20 }}
+   589→          animate={{ opacity: 1, y: 0 }}
+   590→          transition={{ duration: 0.5, delay: 0.3 }}
+   591→        >
+   592→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   593→            <CardHeader className="pb-2">
+   594→              <div className="flex items-center justify-between">
+   595→                <CardTitle className="text-base font-semibold">Top Schemes</CardTitle>
+   596→                <Button variant="ghost" size="icon" className="h-8 w-8">
+   597→                  <MoreHorizontal className="w-4 h-4" />
+   598→                </Button>
+   599→              </div>
+   600→            </CardHeader>
+   601→            <CardContent className="pt-0">
+   602→              <ResponsiveContainer width="100%" height={300}>
+   603→                <BarChart
+   604→                  data={topSchemes}
+   605→                  layout="vertical"
+   606→                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+   607→                >
+   608→                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+   609→                  <XAxis
+   610→                    type="number"
+   611→                    axisLine={false}
+   612→                    tickLine={false}
+   613→                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+   614→                  />
+   615→                  <YAxis
+   616→                    type="category"
+   617→                    dataKey="scheme"
+   618→                    axisLine={false}
+   619→                    tickLine={false}
+   620→                    tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+   621→                    width={85}
+   622→                  />
+   623→                  <Tooltip
+   624→                    contentStyle={{
+   625→                      borderRadius: '0.5rem',
+   626→                      border: '1px solid var(--border)',
+   627→                      background: 'var(--card)',
+   628→                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+   629→                      fontSize: '0.75rem',
+   630→                    }}
+   631→                    formatter={(value: number) => [value.toLocaleString('en-IN'), 'Applications']}
+   632→                  />
+   633→                  <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#0F766E" barSize={20} />
+   634→                </BarChart>
+   635→              </ResponsiveContainer>
+   636→            </CardContent>
+   637→          </Card>
+   638→        </motion.div>
+   639→
+   640→        {/* Recent Applications Table — 2/3 width */}
+   641→        <motion.div
+   642→          className="lg:col-span-2"
+   643→          initial={{ opacity: 0, y: 20 }}
+   644→          animate={{ opacity: 1, y: 0 }}
+   645→          transition={{ duration: 0.5, delay: 0.4 }}
+   646→        >
+   647→          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+   648→            <CardHeader className="pb-2">
+   649→              <div className="flex items-center justify-between">
+   650→                <CardTitle className="text-base font-semibold">Recent Applications</CardTitle>
+   651→                <Button
+   652→                  variant="ghost"
+   653→                  size="sm"
+   654→                  className="text-xs text-primary hover:text-primary/80"
+   655→                  onClick={() => navigate('applications')}
+   656→                >
+   657→                  View All
+   658→                  <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+   659→                </Button>
+   660→              </div>
+   661→            </CardHeader>
+   662→            <CardContent className="pt-0">
+   663→              <div className="max-h-96 overflow-y-auto scrollbar-thin rounded-lg">
+   664→                <table className="w-full text-sm">
+   665→                  <thead className="sticky top-0 bg-card z-10">
+   666→                    <tr className="border-b border-border">
+   667→                      <th className="text-left font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   668→                        App Number
+   669→                      </th>
+   670→                      <th className="text-left font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   671→                        Beneficiary
+   672→                      </th>
+   673→                      <th className="text-right font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   674→                        Amount
+   675→                      </th>
+   676→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   677→                        Score
+   678→                      </th>
+   679→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   680→                        Grade
+   681→                      </th>
+   682→                      <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   683→                        Status
+   684→                      </th>
+   685→                      <th className="text-right font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+   686→                        Date
+   687→                      </th>
+   688→                      <th className="w-10" />
+   689→                    </tr>
+   690→                  </thead>
+   691→                  <tbody className="divide-y divide-border">
+   692→                    {recentApplications.map((app) => {
+   693→                      const creditScore = app.scores?.[0]?.totalScore ?? 0;
+   694→                      const riskGrade = app.scores?.[0]?.riskGrade ?? 'N/A';
+   695→                      const appName = app.beneficiary?.aadhaarName ?? 'Unknown';
+   696→                      return (
+   697→                        <tr
+   698→                          key={app.applicationNumber}
+   699→                          className="hover:bg-muted/50 transition-colors cursor-pointer"
+   700→                          onClick={() =>
+   701→                            navigate('application-detail', {
+   702→                              id: app.applicationNumber,
+   703→                            })
+   704→                          }
+   705→                        >
+   706→                          <td className="px-3 py-2.5 font-mono text-xs font-medium">
+   707→                            {app.applicationNumber}
+   708→                          </td>
+   709→                          <td className="px-3 py-2.5 font-medium">{appName}</td>
+   710→                          <td className="px-3 py-2.5 text-right font-mono text-xs">
+   711→                            {formatCurrency(app.loanAmount)}
+   712→                          </td>
+   713→                          <td className="px-3 py-2.5 text-center">
+   714→                            <span
+   715→                              className={`inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold font-mono ${scoreColor(creditScore)} ${scoreBg(creditScore)}`}
+   716→                            >
+   717→                              {creditScore}
+   718→                            </span>
+   719→                          </td>
+   720→                          <td className="px-3 py-2.5 text-center">
+   721→                            <GradeBadge grade={riskGrade} size="sm" />
+   722→                          </td>
+   723→                          <td className="px-3 py-2.5 text-center">
+   724→                            <StatusBadge status={app.status} />
+   725→                          </td>
+   726→                          <td className="px-3 py-2.5 text-right text-xs text-muted-foreground">
+   727→                            {app.createdAt
+   728→                              ? new Date(app.createdAt).toLocaleDateString('en-IN', {
+   729→                                  day: '2-digit',
+   730→                                  month: 'short',
+   731→                                  year: 'numeric',
+   732→                                })
+   733→                              : '—'}
+   734→                          </td>
+   735→                          <td className="px-2 py-2.5">
+   736→                            <Button
+   737→                              variant="ghost"
+   738→                              size="icon"
+   739→                              className="h-7 w-7"
+   740→                              onClick={(e) => {
+   741→                                e.stopPropagation();
+   742→                                navigate('application-detail', {
+   743→                                  id: app.applicationNumber,
+   744→                                });
+   745→                              }}
+   746→                            >
+   747→                              <Eye className="w-3.5 h-3.5" />
+   748→                            </Button>
+   749→                          </td>
+   750→                        </tr>
+   751→                      );
+   752→                    })}
+   753→                  </tbody>
+   754→                </table>
+   755→              </div>
+   756→            </CardContent>
+   757→          </Card>
+   758→        </motion.div>
+   759→      </div>
+   760→    </div>
+   761→  );
+   762→}
+   763→

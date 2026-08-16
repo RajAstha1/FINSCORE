@@ -11,6 +11,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Label,
   LineChart,
   Line,
   XAxis,
@@ -28,12 +29,10 @@ import {
   AlertTriangle,
   TrendingUp,
   ArrowUpRight,
-  MoreHorizontal,
   Eye,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/use-auth-store';
 import { useAppStore } from '@/store/use-app-store';
-import { StatsCard } from '@/components/shared/stats-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { GradeBadge } from '@/components/shared/grade-badge';
 import { PageHeader } from '@/components/shared/page-header';
@@ -76,8 +75,7 @@ interface DashboardData {
   summary: DashboardSummary;
   recentApplications: RecentApplication[];
   statusDistribution: StatusDist[];
-  gradeDistribution: GradeDist[]
-;
+  gradeDistribution: GradeDist[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,8 +120,22 @@ function scoreBg(score: number): string {
   return 'bg-red-50 dark:bg-red-950/30';
 }
 
+function scoreBorderColor(score: number): string {
+  if (score >= 75) return 'border-l-emerald-500 dark:border-l-emerald-400';
+  if (score >= 60) return 'border-l-amber-500 dark:border-l-amber-400';
+  if (score >= 45) return 'border-l-orange-500 dark:border-l-orange-400';
+  return 'border-l-red-500 dark:border-l-red-400';
+}
+
 function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-IN').format(num);
+}
+
+function iconBorderColor(iconBg: string): string {
+  if (iconBg.includes('teal')) return 'border-teal-200 dark:border-teal-800';
+  if (iconBg.includes('emerald')) return 'border-emerald-200 dark:border-emerald-800';
+  if (iconBg.includes('amber')) return 'border-amber-200 dark:border-amber-800';
+  return 'border-border';
 }
 
 /* ------------------------------------------------------------------ */
@@ -164,28 +176,33 @@ function StatCard({
   sparkColor,
 }: StatCardProps) {
   const isPositive = change >= 0;
+  const iconBorder = iconBorderColor(iconBg);
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
     >
-      <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+      {/* [8] cursor-pointer + hover:shadow-md on stat card */}
+      <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer">
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${iconBg}`}>
+              {/* [8] Subtle border on icon circle */}
+              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full border ${iconBg} ${iconBorder}`}>
                 {icon}
               </div>
               <p className="text-sm font-medium text-muted-foreground">{title}</p>
-              <p className="text-2xl font-bold font-mono tracking-tight">{value}</p>
+              {/* [8] text-3xl instead of text-2xl */}
+              <p className="text-3xl font-bold font-mono tracking-tight">{value}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
+              {/* [5] Improved badge contrast */}
               <span
                 className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${
                   isPositive
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                    : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
                 }`}
               >
                 {isPositive ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowUpRight className="w-3 h-3 mr-0.5 rotate-90" />}
@@ -227,6 +244,41 @@ function CustomAreaTooltip({
         </div>
       ))}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Donut chart custom label renderer                                   */
+/* ------------------------------------------------------------------ */
+
+interface PieLabelProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+  riskGrade: string;
+}
+
+function renderPieLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: PieLabelProps) {
+  if (percent < 0.05) return null;
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={11}
+      fontWeight={600}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
   );
 }
 
@@ -360,6 +412,12 @@ export function ExecutiveDashboard() {
     return schemes;
   }, [data]);
 
+  /* Total count for donut center label */
+  const gradeTotal = useMemo(() => {
+    if (!data?.gradeDistribution) return 0;
+    return data.gradeDistribution.reduce((sum, g) => sum + g._count, 0);
+  }, [data]);
+
   /* Loading state */
   if (isLoading || !data) {
     return (
@@ -436,133 +494,163 @@ export function ExecutiveDashboard() {
 
       {/* ---------- Row 2: Area Chart + Donut ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
-        {/* Area Chart — 2/3 width */}
+        {/* Area Chart \u2014 2/3 width */}
         <motion.div
           className="lg:col-span-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+          {/* [9] Added hover:shadow-md, removed MoreHorizontal button */}
+          <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Applications Over Time</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+              <CardTitle className="text-base font-semibold">Applications Over Time</CardTitle>
+              {/* [1] Custom legend above chart */}
+              <div className="flex items-center gap-4 text-xs pt-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0F766E]" />
+                  Approved
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" />
+                  Pending
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
+                  Rejected
+                </span>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart
-                  data={applicationsOverTime}
-                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0F766E" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0F766E" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="gradRejected" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                  />
-                  <Tooltip content={<CustomAreaTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="approved"
-                    name="Approved"
-                    stackId="1"
-                    stroke="#0F766E"
-                    strokeWidth={2}
-                    fill="url(#gradApproved)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="pending"
-                    name="Pending"
-                    stackId="1"
-                    stroke="#F59E0B"
-                    strokeWidth={2}
-                    fill="url(#gradPending)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rejected"
-                    name="Rejected"
-                    stackId="1"
-                    stroke="#EF4444"
-                    strokeWidth={2}
-                    fill="url(#gradRejected)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {/* [7] Responsive chart height wrapper */}
+              <div className="h-64 sm:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={applicationsOverTime}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0F766E" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#0F766E" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="gradRejected" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#EF4444" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    />
+                    {/* [2] Y-axis with integer ticks and unit label */}
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickFormatter={(v: number) => String(Math.round(v))}
+                      label={{
+                        value: 'Applications',
+                        angle: -90,
+                        position: 'insideLeft',
+                        style: { fontSize: 11, fill: 'var(--muted-foreground)' },
+                      }}
+                    />
+                    <Tooltip content={<CustomAreaTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="approved"
+                      name="Approved"
+                      stackId="1"
+                      stroke="#0F766E"
+                      strokeWidth={2}
+                      fill="url(#gradApproved)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="pending"
+                      name="Pending"
+                      stackId="1"
+                      stroke="#F59E0B"
+                      strokeWidth={2}
+                      fill="url(#gradPending)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="rejected"
+                      name="Rejected"
+                      stackId="1"
+                      stroke="#EF4444"
+                      strokeWidth={2}
+                      fill="url(#gradRejected)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Pie Chart — 1/3 width */}
+        {/* Pie Chart \u2014 1/3 width */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+          {/* [9] Added hover:shadow-md, removed MoreHorizontal button */}
+          <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Risk Grade Distribution</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </div>
+              <CardTitle className="text-base font-semibold">Risk Grade Distribution</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={gradeDistribution}
-                    dataKey="_count"
-                    nameKey="riskGrade"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={2}
-                    strokeWidth={0}
-                  >
-                    {gradeDistribution.map((entry) => (
-                      <Cell key={entry.riskGrade} fill={GRADE_COLORS[entry.riskGrade] ?? '#94A3B8'} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [value, `Grade ${name}`]}
-                    contentStyle={{
-                      borderRadius: '0.5rem',
-                      border: '1px solid var(--border)',
-                      background: 'var(--card)',
-                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
-                      fontSize: '0.75rem',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {/* [7] Responsive chart height wrapper */}
+              <div className="relative h-56 sm:h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={gradeDistribution}
+                      dataKey="_count"
+                      nameKey="riskGrade"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      strokeWidth={0}
+                      label={renderPieLabel}
+                      labelLine={false}
+                    >
+                      {gradeDistribution.map((entry) => (
+                        <Cell key={entry.riskGrade} fill={GRADE_COLORS[entry.riskGrade] ?? '#94A3B8'} />
+                      ))}
+                      {/* [6] Center text showing total count in donut hole */}
+                      <Label
+                        value={`${formatNumber(gradeTotal)}\ntotal`}
+                        position="center"
+                        className="fill-foreground text-sm"
+                        style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}
+                      />
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number, name: string) => [value, `Grade ${name}`]}
+                      contentStyle={{
+                        borderRadius: '0.5rem',
+                        border: '1px solid var(--border)',
+                        background: 'var(--card)',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
               {/* Legend */}
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2">
                 {gradeDistribution.map((entry) => (
@@ -583,68 +671,75 @@ export function ExecutiveDashboard() {
 
       {/* ---------- Row 3: Bar Chart + Recent Applications ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
-        {/* Bar Chart — 1/3 width */}
+        {/* Bar Chart \u2014 1/3 width */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+          {/* [9] Added hover:shadow-md, removed MoreHorizontal button */}
+          <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Top Schemes</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </div>
+              <CardTitle className="text-base font-semibold">Top Schemes</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart
-                  data={topSchemes}
-                  layout="vertical"
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                  <XAxis
-                    type="number"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="scheme"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--foreground)' }}
-                    width={85}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: '0.5rem',
-                      border: '1px solid var(--border)',
-                      background: 'var(--card)',
-                      boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
-                      fontSize: '0.75rem',
-                    }}
-                    formatter={(value: number) => [value.toLocaleString('en-IN'), 'Applications']}
-                  />
-                  <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#0F766E" barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* [7] Responsive chart height wrapper */}
+              <div className="h-64 sm:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={topSchemes}
+                    layout="vertical"
+                    margin={{ top: 5, right:40, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                    <XAxis
+                      type="number"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="scheme"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+                      width={85}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: '0.5rem',
+                        border: '1px solid var(--border)',
+                        background: 'var(--card)',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,.1)',
+                        fontSize: '0.75rem',
+                      }}
+                      formatter={(value: number) => [value.toLocaleString('en-IN'), 'Applications']}
+                    />
+                    {/* [3] Added data labels to bar ends */}
+                    <Bar
+                      dataKey="count"
+                      radius={[0, 6, 6, 0]}
+                      fill="#0F766E"
+                      barSize={20}
+                      label={{ position: 'right', fill: '#0F172A', fontSize: 12, fontWeight: 600 }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Recent Applications Table — 2/3 width */}
+        {/* Recent Applications Table \u2014 2/3 width */}
         <motion.div
           className="lg:col-span-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <Card className="glass-card rounded-xl border border-border/50 shadow-sm">
+          {/* [9] Added hover:shadow-md */}
+          <Card className="glass-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Recent Applications</CardTitle>
@@ -682,21 +777,24 @@ export function ExecutiveDashboard() {
                       <th className="text-center font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="text-right font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
+                      {/* [4] Date column header left-aligned */}
+                      <th className="text-left font-medium text-muted-foreground px-3 py-2.5 text-xs uppercase tracking-wider">
                         Date
                       </th>
                       <th className="w-10" />
                     </tr>
                   </thead>
+                  {/* [4] even:bg-muted/20 zebra striping */}
                   <tbody className="divide-y divide-border">
-                    {recentApplications.map((app) => {
+                    {recentApplications.map((app, idx) => {
                       const creditScore = app.scores?.[0]?.totalScore ?? 0;
                       const riskGrade = app.scores?.[0]?.riskGrade ?? 'N/A';
                       const appName = app.beneficiary?.aadhaarName ?? 'Unknown';
                       return (
                         <tr
                           key={app.applicationNumber}
-                          className="hover:bg-muted/50 transition-colors cursor-pointer"
+                          /* [4] Improved hover + zebra striping */
+                          className={`hover:bg-primary/5 transition-colors duration-150 cursor-pointer ${idx % 2 !== 0 ? 'bg-muted/50' : ''}`}
                           onClick={() =>
                             navigate('application-detail', {
                               id: app.applicationNumber,
@@ -710,7 +808,8 @@ export function ExecutiveDashboard() {
                           <td className="px-3 py-2.5 text-right font-mono text-xs">
                             {formatCurrency(app.loanAmount)}
                           </td>
-                          <td className="px-3 py-2.5 text-center">
+                          {/* [4] Left border accent on score cell */}
+                          <td className={`px-3 py-2.5 text-center border-l-2 ${scoreBorderColor(creditScore)}`}>
                             <span
                               className={`inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold font-mono ${scoreColor(creditScore)} ${scoreBg(creditScore)}`}
                             >
@@ -723,14 +822,15 @@ export function ExecutiveDashboard() {
                           <td className="px-3 py-2.5 text-center">
                             <StatusBadge status={app.status} />
                           </td>
-                          <td className="px-3 py-2.5 text-right text-xs text-muted-foreground">
+                          {/* [4] Date column left-aligned */}
+                          <td className="px-3 py-2.5 text-left text-xs text-muted-foreground">
                             {app.createdAt
                               ? new Date(app.createdAt).toLocaleDateString('en-IN', {
                                   day: '2-digit',
                                   month: 'short',
                                   year: 'numeric',
                                 })
-                              : '—'}
+                              : '\u2014'}
                           </td>
                           <td className="px-2 py-2.5">
                             <Button

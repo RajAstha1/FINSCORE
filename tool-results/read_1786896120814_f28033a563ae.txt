@@ -1,0 +1,621 @@
+     1→'use client';
+     2→
+     3→import { useState } from 'react';
+     4→import { useForm } from 'react-hook-form';
+     5→import { zodResolver } from '@hookform/resolvers/zod';
+     6→import { z } from 'zod';
+     7→import { motion, AnimatePresence } from 'framer-motion';
+     8→import { toast } from 'sonner';
+     9→import {
+    10→  Shield,
+    11→  Lock,
+    12→  User,
+    13→  Eye,
+    14→  EyeOff,
+    15→  ArrowRight,
+    16→  Sparkles,
+    17→  BarChart3,
+    18→  Users,
+    19→  Loader2,
+    20→  Zap,
+    21→  CheckCircle2,
+    22→} from 'lucide-react';
+    23→
+    24→import { Button } from '@/components/ui/button';
+    25→import { Input } from '@/components/ui/input';
+    26→import { Label } from '@/components/ui/label';
+    27→import { Card, CardContent, CardHeader } from '@/components/ui/card';
+    28→import { Badge } from '@/components/ui/badge';
+    29→import { useAuthStore } from '@/store/use-auth-store';
+    30→import { useAppStore } from '@/store/use-app-store';
+    31→
+    32→// ── Zod Schema ──────────────────────────────────────────────────────────────
+    33→const loginSchema = z.object({
+    34→  email: z
+    35→    .string()
+    36→    .min(1, 'Email is required')
+    37→    .email('Please enter a valid email address'),
+    38→  password: z
+    39→    .string()
+    40→    .min(1, 'Password is required')
+    41→    .min(6, 'Password must be at least 6 characters'),
+    42→});
+    43→
+    44→type LoginFormData = z.infer<typeof loginSchema>;
+    45→
+    46→// ── Demo Credentials ────────────────────────────────────────────────────────
+    47→const DEMO_ACCOUNTS = [
+    48→  { email: 'admin@arogya.in', password: 'admin123', label: 'Super Admin', color: 'text-teal' },
+    49→  { email: 'analyst@arogya.in', password: 'analyst123', label: 'Credit Analyst', color: 'text-amber' },
+    50→  { email: 'partner@arogya.in', password: 'partner123', label: 'Channel Partner', color: 'text-emerald' },
+    51→] as const;
+    52→
+    53→// ── Feature cards for left panel ────────────────────────────────────────────
+    54→const FEATURES = [
+    55→  {
+    56→    icon: Zap,
+    57→    title: 'Real-time AI Scoring',
+    58→    description: 'XGBoost + SHAP-powered credit assessment in under 2 seconds',
+    59→  },
+    60→  {
+    61→    icon: BarChart3,
+    62→    title: 'SHAP Explainability',
+    63→    description: 'Transparent, regulatory-compliant risk factor breakdowns',
+    64→  },
+    65→  {
+    66→    icon: CheckCircle2,
+    67→    title: 'Same-Day Sanctioning',
+    68→    description: 'End-to-end digital journey from application to disbursement',
+    69→  },
+    70→];
+    71→
+    72→// ── Animation Variants ──────────────────────────────────────────────────────
+    73→const pageVariants = {
+    74→  hidden: { opacity: 0 },
+    75→  visible: {
+    76→    opacity: 1,
+    77→    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+    78→  },
+    79→};
+    80→
+    81→const itemVariants = {
+    82→  hidden: { opacity: 0, y: 20 },
+    83→  visible: {
+    84→    opacity: 1,
+    85→    y: 0,
+    86→    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    87→  },
+    88→};
+    89→
+    90→const leftPanelVariants = {
+    91→  hidden: { opacity: 0, x: -40 },
+    92→  visible: {
+    93→    opacity: 1,
+    94→    x: 0,
+    95→    transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] },
+    96→  },
+    97→};
+    98→
+    99→const featureCardVariants = {
+   100→  hidden: { opacity: 0, y: 16, scale: 0.96 },
+   101→  visible: (i: number) => ({
+   102→    opacity: 1,
+   103→    y: 0,
+   104→    scale: 1,
+   105→    transition: {
+   106→      duration: 0.5,
+   107→      delay: 0.3 + i * 0.12,
+   108→      ease: [0.25, 0.46, 0.45, 0.94],
+   109→    },
+   110→  }),
+   111→};
+   112→
+   113→// ── Component ───────────────────────────────────────────────────────────────
+   114→export default function LoginPage() {
+   115→  const [showPassword, setShowPassword] = useState(false);
+   116→  const [isSubmitting, setIsSubmitting] = useState(false);
+   117→  const authLogin = useAuthStore((s) => s.login);
+   118→  const navigate = useAppStore((s) => s.navigate);
+   119→
+   120→  const {
+   121→    register,
+   122→    handleSubmit,
+   123→    setValue,
+   124→    formState: { errors },
+   125→  } = useForm<LoginFormData>({
+   126→    resolver: zodResolver(loginSchema),
+   127→    defaultValues: { email: '', password: '' },
+   128→  });
+   129→
+   130→  // ── Submit Handler ──────────────────────────────────────────────────────
+   131→  const onSubmit = async (data: LoginFormData) => {
+   132→    setIsSubmitting(true);
+   133→    try {
+   134→      const res = await fetch('/api/auth/login', {
+   135→        method: 'POST',
+   136→        headers: { 'Content-Type': 'application/json' },
+   137→        body: JSON.stringify(data),
+   138→      });
+   139→
+   140→      const body = await res.json();
+   141→
+   142→      if (!res.ok) {
+   143→        toast.error(body.error || 'Login failed. Please try again.');
+   144→        return;
+   145→      }
+   146→
+   147→      // Success — hydrate stores and navigate
+   148→      authLogin(
+   149→        {
+   150→          id: body.user.id,
+   151→          email: body.user.email,
+   152→          name: body.user.name,
+   153→          role: body.user.role,
+   154→          avatar: body.user.avatar ?? null,
+   155→          phone: null,
+   156→          isActive: true,
+   157→        },
+   158→        body.token,
+   159→      );
+   160→      navigate('dashboard');
+   161→      toast.success(`Welcome back, ${body.user.name}!`);
+   162→    } catch {
+   163→      toast.error('Network error. Please check your connection and try again.');
+   164→    } finally {
+   165→      setIsSubmitting(false);
+   166→    }
+   167→  };
+   168→
+   169→  // ── Quick-fill handler ──────────────────────────────────────────────────
+   170→  const handleQuickFill = (email: string, password: string) => {
+   171→    setValue('email', email, { shouldValidate: true });
+   172→    setValue('password', password, { shouldValidate: true });
+   173→  };
+   174→
+   175→  return (
+   176→    <div className="min-h-screen flex flex-col lg:flex-row">
+   177→      {/* ──────────────────────────────────────────────────────────────────────
+   178→          LEFT PANEL — Brand / Feature showcase (hidden on mobile)
+   179→      ────────────────────────────────────────────────────────────────────── */}
+   180→      <motion.div
+   181→        className="hidden lg:flex lg:w-[52%] relative overflow-hidden"
+   182→        style={{
+   183→          background:
+   184→            'linear-gradient(165deg, #0F766E 0%, #115E59 40%, #0C4A42 70%, #062D28 100%)',
+   185→        }}
+   186→        variants={leftPanelVariants}
+   187→        initial="hidden"
+   188→        animate="visible"
+   189→      >
+   190→        {/* Decorative geometric shapes */}
+   191→        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+   192→          {/* Large circle top-right */}
+   193→          <div
+   194→            className="absolute -top-32 -right-32 w-96 h-96 rounded-full"
+   195→            style={{
+   196→              background:
+   197→                'radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)',
+   198→            }}
+   199→          />
+   200→          {/* Medium circle bottom-left */}
+   201→          <div
+   202→            className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full"
+   203→            style={{
+   204→              background:
+   205→                'radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%)',
+   206→            }}
+   207→          />
+   208→          {/* Grid pattern overlay */}
+   209→          <div
+   210→            className="absolute inset-0 opacity-[0.04]"
+   211→            style={{
+   212→              backgroundImage:
+   213→                'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+   214→              backgroundSize: '64px 64px',
+   215→            }}
+   216→          />
+   217→          {/* Floating diamond */}
+   218→          <div
+   219→            className="absolute top-1/4 right-1/4 w-40 h-40 rotate-45 rounded-lg"
+   220→            style={{
+   221→              background:
+   222→                'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(255,255,255,0.03))',
+   223→              border: '1px solid rgba(255,255,255,0.06)',
+   224→            }}
+   225→          />
+   226→          {/* Small floating dots */}
+   227→          <div className="absolute top-20 left-[30%] w-2 h-2 rounded-full bg-amber/30" />
+   228→          <div className="absolute top-[45%] right-[15%] w-3 h-3 rounded-full bg-teal-light/20" />
+   229→          <div className="absolute bottom-[30%] left-[20%] w-2.5 h-2.5 rounded-full bg-amber/20" />
+   230→        </div>
+   231→
+   232→        {/* Content */}
+   233→        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 py-16 w-full">
+   234→          {/* Logo & Name */}
+   235→          <motion.div
+   236→            className="flex items-center gap-3 mb-4"
+   237→            variants={featureCardVariants}
+   238→            custom={0}
+   239→          >
+   240→            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+   241→              <Shield className="w-6 h-6 text-amber" />
+   242→            </div>
+   243→            <span className="text-white/90 text-sm font-medium tracking-wide uppercase">
+   244→              Arogya FinScore
+   245→            </span>
+   246→          </motion.div>
+   247→
+   248→          {/* Heading */}
+   249→          <motion.h1
+   250→            className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-4"
+   251→            variants={featureCardVariants}
+   252→            custom={1}
+   253→          >
+   254→            AI-Powered
+   255→            <br />
+   256→            <span className="text-amber">Credit Scoring</span>
+   257→            <br />
+   258→            for Inclusive Lending
+   259→          </motion.h1>
+   260→
+   261→          {/* FIX #1: Improved contrast — text-teal-100/60 → text-teal-100/80 */}
+   262→          <motion.p
+   263→            className="text-teal-100/80 text-base xl:text-lg max-w-md leading-relaxed mb-12"
+   264→            variants={featureCardVariants}
+   265→            custom={2}
+   266→          >
+   267→            Enabling financial institutions to serve the unbanked with transparent,
+   268→            explainable AI — fully compliant with RBI guidelines.
+   269→          </motion.p>
+   270→
+   271→          {/* Feature cards */}
+   272→          <div className="flex flex-col gap-4">
+   273→            {FEATURES.map((feature, i) => {
+   274→              const Icon = feature.icon;
+   275→              return (
+   276→                <motion.div
+   277→                  key={feature.title}
+   278→                  className="group flex items-start gap-4 rounded-2xl p-4 backdrop-blur-md transition-colors duration-300"
+   279→                  style={{
+   280→                    background:
+   281→                      'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+   282→                    border: '1px solid rgba(255,255,255,0.06)',
+   283→                  }}
+   284→                  custom={i + 3}
+   285→                  variants={featureCardVariants}
+   286→                  whileHover={{
+   287→                    background:
+   288→                      'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04))',
+   289→                    x: 4,
+   290→                  }}
+   291→                >
+   292→                  <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-amber/15 text-amber">
+   293→                    <Icon className="w-5 h-5" />
+   294→                  </div>
+   295→                  <div>
+   296→                    <h3 className="text-white font-semibold text-sm mb-0.5">
+   297→                      {feature.title}
+   298→                    </h3>
+   299→                    {/* FIX #1: Improved contrast — text-teal-100/50 → text-teal-100/70 */}
+   300→                    <p className="text-teal-100/70 text-xs leading-relaxed">
+   301→                      {feature.description}
+   302→                    </p>
+   303→                  </div>
+   304→                </motion.div>
+   305→              );
+   306→            })}
+   307→          </div>
+   308→
+   309→          {/* Trust badges at bottom */}
+   310→          <motion.div
+   311→            className="flex items-center gap-6 mt-12 pt-6 border-t border-white/8"
+   312→            variants={featureCardVariants}
+   313→            custom={7}
+   314→          >
+   315→            <div className="flex items-center gap-2">
+   316→              {/* FIX #1: Improved contrast — text-teal-100/40 → text-teal-100/60 */}
+   317→              <Users className="w-4 h-4 text-teal-100/60" />
+   318→              <span className="text-teal-100/60 text-xs font-medium">
+   319→                2.4M+ Scores Generated
+   320→              </span>
+   321→            </div>
+   322→            <div className="flex items-center gap-2">
+   323→              <Sparkles className="w-4 h-4 text-amber/60" />
+   324→              {/* FIX #1: Improved contrast — text-teal-100/40 → text-teal-100/60 */}
+   325→              <span className="text-teal-100/60 text-xs font-medium">
+   326→                99.2% Uptime
+   327→              </span>
+   328→            </div>
+   329→          </motion.div>
+   330→        </div>
+   331→      </motion.div>
+   332→
+   333→      {/* ──────────────────────────────────────────────────────────────────────
+   334→          RIGHT PANEL — Login Form
+   335→      ────────────────────────────────────────────────────────────────────── */}
+   336→      {/* FIX #6: py-8 → py-12 on mobile; FIX #10: before: gradient for mobile brand feel */}
+   337→      <motion.div
+   338→        className="relative flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen before:bg-gradient-to-b before:from-teal/5 before:to-transparent before:absolute before:inset-0 before:z-0"
+   339→        style={{
+   340→          background:
+   341→            'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%), radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)',
+   342→          backgroundSize: '100% 100%, 24px 24px',
+   343→        }}
+   344→        variants={pageVariants}
+   345→        initial="hidden"
+   346→        animate="visible"
+   347→      >
+   348→        <div className="w-full max-w-[420px] relative z-10">
+   349→          {/* ── Mobile Logo (visible only on mobile) ───────────────────────── */}
+   350→          <motion.div
+   351→            className="flex flex-col items-center mb-8 lg:mb-10"
+   352→            variants={itemVariants}
+   353→          >
+   354→            <div
+   355→              className="flex items-center justify-center w-12 h-12 rounded-2xl mb-3"
+   356→              style={{ background: 'linear-gradient(135deg, #0F766E, #115E59)' }}
+   357→            >
+   358→              <Shield className="w-7 h-7 text-amber" />
+   359→            </div>
+   360→            <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+   361→              Arogya FinScore
+   362→            </h2>
+   363→            <p className="text-xs text-slate-500 mt-0.5">
+   364→              AI-Powered Credit Scoring for Inclusive Lending
+   365→            </p>
+   366→          </motion.div>
+   367→
+   368→          {/* ── Card ───────────────────────────────────────────────────────── */}
+   369→          <motion.div variants={itemVariants}>
+   370→            {/* FIX #3: Added inner shadow via before pseudo-element */}
+   371→            <Card className="border-0 shadow-xl shadow-slate-900/[0.04] rounded-2xl overflow-hidden relative before:absolute before:top-0 before:inset-x-0 before:h-px before:bg-gradient-to-r before:from-white/60 before:via-white/40 before:to-white/20 dark:before:from-white/5 dark:before:via-white/[0.03] dark:before:to-white/0 before:z-10">
+   372→              {/* Card glassmorphism header strip */}
+   373→              <div
+   374→                className="h-1.5"
+   375→                style={{
+   376→                  background:
+   377→                    'linear-gradient(90deg, #0F766E 0%, #14B8A6 50%, #F59E0B 100%)',
+   378→                }}
+   379→              />
+   380→
+   381→              <CardHeader className="pb-2 pt-6 px-6 sm:px-8">
+   382→                <motion.h1
+   383→                  className="text-2xl font-bold text-slate-900 tracking-tight"
+   384→                  variants={itemVariants}
+   385→                >
+   386→                  Welcome back
+   387→                </motion.h1>
+   388→                <motion.p
+   389→                  className="text-sm text-slate-500 mt-1"
+   390→                  variants={itemVariants}
+   391→                >
+   392→                  Sign in to your account to continue
+   393→                </motion.p>
+   394→              </CardHeader>
+   395→
+   396→              <CardContent className="px-6 sm:px-8 pb-8">
+   397→                {/* FIX #3: space-y-5 → space-y-6 for more breathing room */}
+   398→                <motion.form
+   399→                  onSubmit={handleSubmit(onSubmit)}
+   400→                  className="space-y-6"
+   401→                  variants={itemVariants}
+   402→                  noValidate
+   403→                >
+   404→                  {/* Email Field */}
+   405→                  <div className="space-y-2">
+   406→                    <Label
+   407→                      htmlFor="email"
+   408→                      className="text-sm font-medium text-slate-700"
+   409→                    >
+   410→                      Email address
+   411→                    </Label>
+   412→                    <div className="relative">
+   413→                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   414→                      {/* FIX #4: Added focus-visible:shadow ring animation */}
+   415→                      <Input
+   416→                        id="email"
+   417→                        type="email"
+   418→                        placeholder="you@example.com"
+   419→                        autoComplete="email"
+   420→                        className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]"
+   421→                        {...register('email')}
+   422→                      />
+   423→                    </div>
+   424→                    <AnimatePresence mode="wait">
+   425→                      {errors.email && (
+   426→                        <motion.p
+   427→                          className="text-xs text-red-500 flex items-center gap-1"
+   428→                          initial={{ opacity: 0, y: -4 }}
+   429→                          animate={{ opacity: 1, y: 0 }}
+   430→                          exit={{ opacity: 0, y: -4 }}
+   431→                        >
+   432→                          {errors.email.message}
+   433→                        </motion.p>
+   434→                      )}
+   435→                    </AnimatePresence>
+   436→                  </div>
+   437→
+   438→                  {/* Password Field */}
+   439→                  <div className="space-y-2">
+   440→                    {/* FIX #3: Added Forgot password? link next to label */}
+   441→                    <div className="flex items-center justify-between">
+   442→                      <Label
+   443→                        htmlFor="password"
+   444→                        className="text-sm font-medium text-slate-700"
+   445→                      >
+   446→                        Password
+   447→                      </Label>
+   448→                      <span className="text-xs text-primary hover:underline cursor-pointer">
+   449→                        Forgot password?
+   450→                      </span>
+   451→                    </div>
+   452→                    <div className="relative">
+   453→                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   454→                      {/* FIX #4: Added focus-visible:shadow ring animation */}
+   455→                      <Input
+   456→                        id="password"
+   457→                        type={showPassword ? 'text' : 'password'}
+   458→                        placeholder="Enter your password"
+   459→                        autoComplete="current-password"
+   460→                        className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]"
+   461→                        {...register('password')}
+   462→                      />
+   463→                      <button
+   464→                        type="button"
+   465→                        onClick={() => setShowPassword((v) => !v)}
+   466→                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+   467→                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+   468→                        tabIndex={-1}
+   469→                      >
+   470→                        {showPassword ? (
+   471→                          <EyeOff className="w-4 h-4" />
+   472→                        ) : (
+   473→                          <Eye className="w-4 h-4" />
+   474→                        )}
+   475→                      </button>
+   476→                    </div>
+   477→                    <AnimatePresence mode="wait">
+   478→                      {errors.password && (
+   479→                        <motion.p
+   480→                          className="text-xs text-red-500 flex items-center gap-1"
+   481→                          initial={{ opacity: 0, y: -4 }}
+   482→                          animate={{ opacity: 1, y: 0 }}
+   483→                          exit={{ opacity: 0, y: -4 }}
+   484→                        >
+   485→                          {errors.password.message}
+   486→                        </motion.p>
+   487→                      )}
+   488→                    </AnimatePresence>
+   489→                  </div>
+   490→
+   491→                  {/* FIX #5: Simplified — single Button with motion.div wrapper, removed double-nested button */}
+   492→                  <motion.div
+   493→                    className="pt-1"
+   494→                    variants={itemVariants}
+   495→                    whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
+   496→                    whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
+   497→                  >
+   498→                    <Button
+   499→                      type="submit"
+   500→                      disabled={isSubmitting}
+   501→                      className="w-full h-11 rounded-xl text-sm font-semibold text-white shadow-lg shadow-teal/25 hover:shadow-xl hover:shadow-teal/30 transition-all duration-300"
+   502→                      style={{
+   503→                        background:
+   504→                          'linear-gradient(135deg, #0F766E 0%, #115E59 100%)',
+   505→                      }}
+   506→                    >
+   507→                      <AnimatePresence mode="wait">
+   508→                        {isSubmitting ? (
+   509→                          <motion.span
+   510→                            key="loading"
+   511→                            className="flex items-center gap-2"
+   512→                            initial={{ opacity: 0, y: 8 }}
+   513→                            animate={{ opacity: 1, y: 0 }}
+   514→                            exit={{ opacity: 0, y: -8 }}
+   515→                          >
+   516→                            <Loader2 className="w-4 h-4 animate-spin" />
+   517→                            Signing in…
+   518→                          </motion.span>
+   519→                        ) : (
+   520→                          <motion.span
+   521→                            key="idle"
+   522→                            className="flex items-center gap-2"
+   523→                            initial={{ opacity: 0, y: 8 }}
+   524→                            animate={{ opacity: 1, y: 0 }}
+   525→                            exit={{ opacity: 0, y: -8 }}
+   526→                          >
+   527→                            Sign in
+   528→                            <ArrowRight className="w-4 h-4" />
+   529→                          </motion.span>
+   530→                        )}
+   531→                      </AnimatePresence>
+   532→                    </Button>
+   533→                  </motion.div>
+   534→                </motion.form>
+   535→
+   536→                {/* ── Demo Credentials ─────────────────────────────────────── */}
+   537→                <motion.div
+   538→                  className="mt-8 pt-6 border-t border-slate-100"
+   539→                  variants={itemVariants}
+   540→                >
+   541→                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+   542→                    <Sparkles className="w-3.5 h-3.5 text-amber" />
+   543→                    Demo Credentials
+   544→                  </p>
+   545→                  {/* FIX #2: Wrapped in subtle background card for visual grouping */}
+   546→                  <div className="rounded-xl p-3.5 bg-muted/40 border border-border/50">
+   547→                    <div className="flex flex-col gap-2">
+   548→                      {DEMO_ACCOUNTS.map((account) => (
+   549→                        <button
+   550→                          key={account.email}
+   551→                          type="button"
+   552→                          onClick={() =>
+   553→                            handleQuickFill(account.email, account.password)
+   554→                          }
+   555→                          className="group flex items-center justify-between rounded-xl px-3.5 py-2.5 bg-slate-50/60 hover:bg-teal/5 border border-slate-100 hover:border-teal/15 transition-all duration-200 text-left"
+   556→                        >
+   557→                          <div className="flex items-center gap-3 min-w-0">
+   558→                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+   559→                              <Shield className="w-3.5 h-3.5 text-teal" />
+   560→                            </div>
+   561→                            <div className="min-w-0">
+   562→                              {/* FIX #2: Bolder role name, lighter email */}
+   563→                              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+   564→                                {account.label}
+   565→                              </p>
+   566→                              <p className="text-[11px] text-muted-foreground font-normal truncate">
+   567→                                {account.email}
+   568→                              </p>
+   569→                            </div>
+   570→                          </div>
+   571→                          <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal transition-colors flex-shrink-0" />
+   572→                        </button>
+   573→                      ))}
+   574→                    </div>
+   575→                  </div>
+   576→                </motion.div>
+   577→
+   578→                {/* ── Security Footer ──────────────────────────────────────── */}
+   579→                <motion.div
+   580→                  className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
+   581→                  variants={itemVariants}
+   582→                >
+   583→                  <div className="flex items-center gap-1.5 text-slate-400">
+   584→                    <Lock className="w-3 h-3" />
+   585→                    <span className="text-[11px] font-medium">
+   586→                      Secured by 256-bit encryption
+   587→                    </span>
+   588→                  </div>
+   589→                  <Badge
+   590→                    variant="outline"
+   591→                    className="text-[10px] font-semibold uppercase tracking-wider text-teal border-teal/20 bg-teal/5 rounded-md px-2 py-0.5"
+   592→                  >
+   593→                    RBI Compliant
+   594→                  </Badge>
+   595→                </motion.div>
+   596→              </CardContent>
+   597→            </Card>
+   598→          </motion.div>
+   599→
+   600→          {/* ── Bottom Copyright ──────────────────────────────────────────── */}
+   601→          {/* FIX #8: Subtler copyright with Privacy Policy and Terms links */}
+   602→          <motion.p
+   603→            className="text-center text-[11px] text-muted-foreground/60 mt-8"
+   604→            variants={itemVariants}
+   605→          >
+   606→            &copy; {new Date().getFullYear()} Arogya FinScore. All rights reserved.
+   607→            <span className="mx-1.5">&bull;</span>
+   608→            <span className="cursor-pointer hover:text-foreground transition-colors">
+   609→              Privacy Policy
+   610→            </span>
+   611→            <span className="mx-1.5">&bull;</span>
+   612→            <span className="cursor-pointer hover:text-foreground transition-colors">
+   613→              Terms
+   614→            </span>
+   615→          </motion.p>
+   616→        </div>
+   617→      </motion.div>
+   618→    </div>
+   619→  );
+   620→}
+   621→

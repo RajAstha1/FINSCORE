@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
       }
     },
     onSuccess: () => {
- toast.success(editingUser ? 'User updated successfully' : 'User created successfully');
+      toast.success(editingUser ? 'User updated successfully' : 'User created successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       closeDialog();
     },
@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
       return res.json();
     },
     onSuccess: () => {
- toast.success('User deactivated successfully');
+      toast.success('User deactivated successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setDeactivateTarget(null);
     },
@@ -183,7 +183,7 @@ export default function AdminUsersPage() {
 
   return (
     <motion.div
-      className="space-y-6 animate-fade-in-up"
+      className="space-y-4 sm:space-y-6 animate-fade-in-up"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -192,28 +192,28 @@ export default function AdminUsersPage() {
         title="User Management"
         description={`${total} user${total !== 1 ? 's' : ''} total`}
         actions={
-          <Button size="sm" onClick={openCreateDialog}>
+          <Button size="sm" className="h-11 w-full sm:w-auto" onClick={openCreateDialog}>
             <Plus className="size-4 mr-1.5" /> Add User
           </Button>
         }
       />
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input placeholder="Search users..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+        <Input placeholder="Search users..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-11" />
       </div>
 
       {/* Table */}
       <Card className="glass-card overflow-hidden">
         {isLoading ? (
-          <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+          <div className="space-y-3 p-4 sm:p-6">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11" />)}</div>
         ) : isError ? (
           <EmptyState title="Failed to load users" />
         ) : users.length === 0 ? (
           <EmptyState title="No users found" action={{ label: 'Add User', onClick: openCreateDialog }} />
         ) : (
-          <div className="max-h-96 overflow-y-auto scrollbar-thin">
+          <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
             <Table>
               <TableHeader>
                 <TableRow className="sticky top-0 bg-card z-10">
@@ -237,13 +237,13 @@ export default function AdminUsersPage() {
                     >
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${ROLE_COLORS[user.role] ?? 'bg-muted'}`}>
+                          <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${ROLE_COLORS[user.role] ?? 'bg-muted'}`}>
                             {user.name?.charAt(0)?.toUpperCase() ?? '?'}
                           </div>
-                          <span className="text-sm font-medium">{user.name}</span>
+                          <span className="text-sm font-medium whitespace-nowrap">{user.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground font-mono">{user.email}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-mono whitespace-nowrap">{user.email}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-xs ${ROLE_COLORS[user.role] ?? ''}`}>
                           {ROLE_LABELS[user.role as UserRole] ?? user.role}
@@ -254,13 +254,13 @@ export default function AdminUsersPage() {
                           {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(user.lastLoginAt)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(user.lastLoginAt)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(user)} disabled={user.id === currentUser?.id}>
+                          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => openEditDialog(user)} disabled={user.id === currentUser?.id}>
                             <Pencil className="size-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-red-600 dark:text-red-400" onClick={() => setDeactivateTarget(user)} disabled={user.id === currentUser?.id || !user.isActive}>
+                          <Button variant="ghost" size="icon" className="h-11 w-11 text-red-600 dark:text-red-400" onClick={() => setDeactivateTarget(user)} disabled={user.id === currentUser?.id || !user.isActive}>
                             <UserX className="size-3.5" />
                           </Button>
                         </div>
@@ -275,13 +275,13 @@ export default function AdminUsersPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t p-3 sm:px-4 sm:py-3">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Page <span className="font-mono">{page}</span> of <span className="font-mono">{totalPages}</span>
             </p>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="size-8" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>‹</Button>
-              <Button variant="outline" size="icon" className="size-8" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>›</Button>
+            <div className="flex items-center justify-center gap-1">
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>‹</Button>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>›</Button>
             </div>
           </div>
         )}
@@ -289,24 +289,24 @@ export default function AdminUsersPage() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-lg w-[calc(100%-2rem)]">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
             <DialogDescription>{editingUser ? 'Update user details below.' : 'Fill in the details to create a new user.'}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 sm:space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Full name" />
+              <Input id="name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Full name" className="h-11" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="user@example.com" />
+              <Input id="email" type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="user@example.com" className="h-11" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select value={formRole} onValueChange={setFormRole}>
-                <SelectTrigger id="role"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="role" className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {VALID_ROLES.map((r) => (
                     <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
@@ -316,14 +316,15 @@ export default function AdminUsersPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{editingUser ? 'New Password (leave blank to keep current)' : 'Password'}</Label>
-              <Input id="password" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingUser ? '••••••••' : 'Min 8 characters'} />
+              <Input id="password" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingUser ? '••••••••' : 'Min 8 characters'} className="h-11" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={closeDialog} className="h-11 w-full sm:w-auto">Cancel</Button>
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={!formName || !formEmail || (!editingUser && !formPassword) || saveMutation.isPending}
+              className="h-11 w-full sm:w-auto"
             >
               {saveMutation.isPending ? 'Saving...' : editingUser ? 'Save Changes' : 'Create User'}
             </Button>
@@ -333,16 +334,16 @@ export default function AdminUsersPage() {
 
       {/* Deactivate Confirmation */}
       <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-lg w-[calc(100%-2rem)]">
           <AlertDialogHeader>
             <AlertDialogTitle>Deactivate User</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to deactivate <span className="font-semibold">{deactivateTarget?.name}</span> ({deactivateTarget?.email})? They will be logged out immediately and will not be able to sign in.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deactivateMutation.mutate()} disabled={deactivateMutation.isPending}>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="h-11 w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 h-11 w-full sm:w-auto" onClick={() => deactivateMutation.mutate()} disabled={deactivateMutation.isPending}>
               {deactivateMutation.isPending ? 'Deactivating...' : 'Deactivate'}
             </AlertDialogAction>
           </AlertDialogFooter>

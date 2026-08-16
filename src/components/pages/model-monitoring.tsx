@@ -83,9 +83,9 @@ export default function ModelMonitoringPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in-up">
+      <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
         <PageHeader title="Model Monitoring & Performance" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
         <Skeleton className="h-96" />
@@ -135,7 +135,7 @@ export default function ModelMonitoringPage() {
 
   return (
     <motion.div
-      className="space-y-6 animate-fade-in-up"
+      className="space-y-4 sm:space-y-6 animate-fade-in-up"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -143,7 +143,7 @@ export default function ModelMonitoringPage() {
       <PageHeader title="Model Monitoring & Performance" />
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 stagger-children">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 stagger-children">
         <StatsCard title="Model Version" value={latestVersion} icon={GitBranch} iconColor="bg-primary/10 text-primary" />
         <StatsCard title="Avg F1" value={avgF1.toFixed(3)} icon={Target} iconColor="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
         <StatsCard title="Avg AUC-ROC" value={avgAuc.toFixed(3)} icon={Activity} iconColor="bg-teal-500/10 text-teal-600 dark:text-teal-400" />
@@ -152,15 +152,17 @@ export default function ModelMonitoringPage() {
         <StatsCard title="Override Rate" value={`${overrideRate}%`} icon={BarChart3} iconColor="bg-red-500/10 text-red-600 dark:text-red-400" />
       </div>
 
-      <Tabs defaultValue="performance" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
-          <TabsTrigger value="decisions">Decision Distribution</TabsTrigger>
-          <TabsTrigger value="volume">Scoring Volume</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="performance" className="space-y-3 sm:space-y-4">
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="inline-flex min-w-max">
+            <TabsTrigger value="performance" className="h-11">Performance Metrics</TabsTrigger>
+            <TabsTrigger value="decisions" className="h-11">Decision Distribution</TabsTrigger>
+            <TabsTrigger value="volume" className="h-11">Scoring Volume</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Performance Metrics Tab */}
-        <TabsContent value="performance" className="space-y-4">
+        <TabsContent value="performance" className="space-y-3 sm:space-y-4">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Metrics Over Time</CardTitle>
@@ -170,7 +172,7 @@ export default function ModelMonitoringPage() {
               {performanceTrend.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No performance data available yet.</p>
               ) : (
-                <div className="h-80">
+                <div className="h-64 sm:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={performanceTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -195,7 +197,7 @@ export default function ModelMonitoringPage() {
               <CardTitle className="text-base">Metrics by Model Version</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="max-h-64 overflow-y-auto scrollbar-thin">
+              <div className="max-h-64 overflow-x-auto overflow-y-auto scrollbar-thin">
                 <Table>
                   <TableHeader>
                     <TableRow className="sticky top-0 bg-card z-10">
@@ -208,7 +210,7 @@ export default function ModelMonitoringPage() {
                   <TableBody>
                     {modelVersions.map((v) => (
                       <TableRow key={v.version}>
-                        <TableCell className="font-mono text-sm font-medium">{v.version}</TableCell>
+                        <TableCell className="font-mono text-sm font-medium whitespace-nowrap">{v.version}</TableCell>
                         <TableCell className="font-mono text-sm text-right tabular-nums">{v.count.toLocaleString('en-IN')}</TableCell>
                         <TableCell className="font-mono text-sm text-right tabular-nums">{v.avgScore}</TableCell>
                         <TableCell className="font-mono text-sm text-right tabular-nums">{v.avgConfidence}%</TableCell>
@@ -225,8 +227,8 @@ export default function ModelMonitoringPage() {
         </TabsContent>
 
         {/* Decision Distribution Tab */}
-        <TabsContent value="decisions" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="decisions" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <Card className="glass-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Decision Type Distribution</CardTitle>
@@ -235,7 +237,7 @@ export default function ModelMonitoringPage() {
                 {decisionPieData.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">No decision data.</p>
                 ) : (
-                  <div className="h-64">
+                  <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={decisionPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40} paddingAngle={3}>
@@ -246,7 +248,7 @@ export default function ModelMonitoringPage() {
                         <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="flex justify-center gap-4 mt-2">
+                    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-2">
                       {decisionPieData.map((d) => (
                         <div key={d.name} className="flex items-center gap-1.5 text-xs">
                           <div className="size-2.5 rounded-full" style={{ backgroundColor: d.fill }} />
@@ -268,7 +270,7 @@ export default function ModelMonitoringPage() {
                 {gradeBarData.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">No grade data.</p>
                 ) : (
-                  <div className="h-64">
+                  <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={gradeBarData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -290,7 +292,7 @@ export default function ModelMonitoringPage() {
         </TabsContent>
 
         {/* Scoring Volume Tab */}
-        <TabsContent value="volume" className="space-y-4">
+        <TabsContent value="volume" className="space-y-3 sm:space-y-4">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Application Pipeline</CardTitle>
@@ -300,7 +302,7 @@ export default function ModelMonitoringPage() {
               {pipelineData.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No pipeline data.</p>
               ) : (
-                <div className="h-72">
+                <div className="h-56 sm:h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={pipelineData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -320,7 +322,7 @@ export default function ModelMonitoringPage() {
               <CardTitle className="text-base">Scoring Statistics</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="max-h-64 overflow-y-auto scrollbar-thin">
+              <div className="max-h-64 overflow-x-auto overflow-y-auto scrollbar-thin">
                 <Table>
                   <TableHeader>
                     <TableRow className="sticky top-0 bg-card z-10">

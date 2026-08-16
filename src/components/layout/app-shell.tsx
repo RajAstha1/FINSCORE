@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Shield } from 'lucide-react';
 
 import { useAuthStore } from '@/store/use-auth-store';
 import { useAppStore, type AppPage } from '@/store/use-app-store';
@@ -51,11 +52,47 @@ const pageVariants = {
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
 };
 
+// ── Splash Screen ─────────────────────────────────────────────────
+
+function SplashScreen({ onComplete }: { onComplete: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 1200);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background"
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 0 }}
+      transition={{ duration: 0.4, delay: 0.8, ease: 'easeInOut' }}
+      onAnimationComplete={onComplete}
+    >
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      >
+        <Shield className="size-12 text-primary" strokeWidth={1.5} />
+      </motion.div>
+      <motion.p
+        className="mt-3 text-lg font-semibold tracking-tight text-foreground"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
+        Arogya FinScore
+      </motion.p>
+    </motion.div>
+  );
+}
+
 // ── App Shell Component ───────────────────────────────────────────
 
 export default function AppShell() {
   const { currentPage, sidebarOpen, setSidebarOpen, commandOpen, setCommandOpen } = useAppStore();
   const { token } = useAuthStore();
+  const [showSplash, setShowSplash] = useState(true);
 
   // Close sidebar on navigation (mobile)
   useEffect(() => {
@@ -72,50 +109,57 @@ export default function AppShell() {
   const PageComponent = PAGE_COMPONENTS[currentPage];
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Desktop Sidebar */}
-      <AppSidebarDesktop />
+    <>
+      <AnimatePresence>
+        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      </AnimatePresence>
 
-      {/* Mobile Sidebar */}
-      <AppSidebarMobile open={sidebarOpen} onOpenChange={setSidebarOpen} />
+      <div className="min-h-screen flex bg-background">
+        {/* Desktop Sidebar */}
+        <AppSidebarDesktop />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen md:ml-64">
-        <AppHeader />
+        {/* Mobile Sidebar */}
+        <AppSidebarMobile open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentPage}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="mx-auto max-w-[1600px] w-full"
-            >
-              <PageComponent />
-            </motion.div>
-          </AnimatePresence>
-        </main>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-h-screen md:ml-64">
+          <AppHeader />
 
-        {/* Sticky Footer */}
-        <footer className="mt-auto border-t bg-card/50 backdrop-blur-sm px-4 md:px-6 py-3">
-          <div className="mx-auto max-w-[1600px] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>© {new Date().getFullYear()} Arogya FinScore. All rights reserved.</span>
-            <div className="flex items-center gap-4">
-              <span className="hidden sm:inline">v2.4.1-ensemble</span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                All systems operational
-              </span>
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="mx-auto max-w-[1600px] w-full"
+              >
+                <PageComponent />
+              </motion.div>
+            </AnimatePresence>
+          </main>
+
+          {/* Sticky Footer */}
+          <footer className="mt-auto relative bg-card/50 backdrop-blur-sm px-4 md:px-6 py-3 border-t-0">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent z-10" />
+            <div className="mx-auto max-w-[1600px] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>© {new Date().getFullYear()} Arogya FinScore. All rights reserved.</span>
+              <div className="flex items-center gap-4">
+                <span className="hidden sm:inline">v2.4.1-ensemble</span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  All systems operational
+                </span>
+              </div>
             </div>
-          </div>
-        </footer>
-      </div>
+          </footer>
+        </div>
 
-      {/* Command Palette */}
-      <Command />
-    </div>
+        {/* Command Palette */}
+        <Command />
+      </div>
+    </>
   );
 }
 

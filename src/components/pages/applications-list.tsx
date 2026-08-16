@@ -133,7 +133,7 @@ async function fetchApplications(
 
 function TableSkeleton() {
   return (
-    <div className="space-y-3 p-4">
+    <div className="space-y-3 p-4 sm:p-6">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
           <Skeleton className="h-4 w-24" />
@@ -144,7 +144,7 @@ function TableSkeleton() {
           <Skeleton className="h-5 w-10" />
           <Skeleton className="h-4 w-10" />
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-11 w-11" />
         </div>
       ))}
     </div>
@@ -223,7 +223,7 @@ export default function ApplicationsListPage() {
 
   return (
     <motion.div
-      className="space-y-6 animate-fade-in-up"
+      className="space-y-4 sm:space-y-6 animate-fade-in-up"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -231,12 +231,12 @@ export default function ApplicationsListPage() {
       <PageHeader
         title="Loan Applications"
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none h-11" onClick={handleExport}>
               <Download className="size-4 mr-1.5" />
               Export CSV
             </Button>
-            <Button size="sm" onClick={() => navigate('application-new')}>
+            <Button size="sm" className="flex-1 sm:flex-none h-11" onClick={() => navigate('application-new')}>
               <Plus className="size-4 mr-1.5" />
               New Application
             </Button>
@@ -246,7 +246,7 @@ export default function ApplicationsListPage() {
 
       {/* Search & Filters */}
       <Card className="glass-card">
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           {/* Search row */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -254,19 +254,19 @@ export default function ApplicationsListPage() {
               placeholder="Search by application #, beneficiary name, or Aadhaar..."
               value={search}
               onChange={(e) => updateSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-11"
             />
           </div>
 
           {/* Filter row */}
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
               <Filter className="size-4" />
               <span className="font-medium">Filters:</span>
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[140px]">
               <Select value={status} onValueChange={(v) => { setStatus(v === '_all' ? '' : v); setPage(1); }}>
-                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_all">All Statuses</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
@@ -282,9 +282,9 @@ export default function ApplicationsListPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[140px]">
               <Select value={grade} onValueChange={(v) => { setGrade(v === '_all' ? '' : v); setPage(1); }}>
-                <SelectTrigger><SelectValue placeholder="Risk Grade" /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Risk Grade" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_all">All Grades</SelectItem>
                   <SelectItem value="A+">A+</SelectItem>
@@ -297,9 +297,9 @@ export default function ApplicationsListPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[140px]">
               <Select value={scheme} onValueChange={(v) => { setScheme(v === '_all' ? '' : v); setPage(1); }}>
-                <SelectTrigger><SelectValue placeholder="Scheme" /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Scheme" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_all">All Schemes</SelectItem>
                   <SelectItem value="NBCFDC">NBCFDC</SelectItem>
@@ -309,20 +309,22 @@ export default function ApplicationsListPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[130px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[130px]">
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
                 placeholder="From"
+                className="h-11"
               />
             </div>
-            <div className="flex-1 min-w-[130px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[130px]">
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => { setToDate(e.target.value); setPage(1); }}
                 placeholder="To"
+                className="h-11"
               />
             </div>
           </div>
@@ -330,7 +332,7 @@ export default function ApplicationsListPage() {
       </Card>
 
       {/* Data Table */}
-      <Card className="glass-card overflow-hidden">
+      <Card className="glass-card">
         {isLoading ? (
           <TableSkeleton />
         ) : isError || !data ? (
@@ -345,7 +347,7 @@ export default function ApplicationsListPage() {
             action={{ label: 'Clear Filters', onClick: () => { setSearch(''); setDebouncedSearch(''); setStatus(''); setGrade(''); setScheme(''); setFromDate(''); setToDate(''); setPage(1); } }}
           />
         ) : (
-          <div className="max-h-96 overflow-y-auto scrollbar-thin">
+          <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
             <Table>
               <TableHeader>
                 <TableRow className="sticky top-0 bg-card z-10">
@@ -371,24 +373,24 @@ export default function ApplicationsListPage() {
                       className="border-b border-border/50 hover:bg-muted/40 transition-colors cursor-pointer"
                       onClick={() => navigate('application-detail', { id: app.id })}
                     >
-                      <TableCell className="font-mono text-sm font-medium">{app.applicationNumber}</TableCell>
+                      <TableCell className="font-mono text-sm font-medium whitespace-nowrap">{app.applicationNumber}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-sm">{app.beneficiary?.name || '—'}</span>
                           <span className="text-xs text-muted-foreground font-mono">{maskAadhaar(app.beneficiary?.aadhaarNumber)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-right">{formatCurrency(app.loanAmount)}</TableCell>
-                      <TableCell className="text-sm capitalize">{app.loanPurpose?.replace(/_/g, ' ')}</TableCell>
+                      <TableCell className="font-mono text-sm text-right whitespace-nowrap">{formatCurrency(app.loanAmount)}</TableCell>
+                      <TableCell className="text-sm capitalize whitespace-nowrap">{app.loanPurpose?.replace(/_/g, ' ')}</TableCell>
                       <TableCell><StatusBadge status={app.status} /></TableCell>
                       <TableCell>{app.scores[0]?.riskGrade ? <GradeBadge grade={app.scores[0].riskGrade} size="sm" /> : <span className="text-muted-foreground text-sm">—</span>}</TableCell>
                       <TableCell className="font-mono text-sm text-right">{app.scores[0]?.totalScore ?? '—'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(app.createdAt)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(app.createdAt)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-8"
+                          className="h-11 w-11"
                           onClick={(e) => { e.stopPropagation(); navigate('application-detail', { id: app.id }); }}
                         >
                           <Eye className="size-4" />
@@ -404,22 +406,22 @@ export default function ApplicationsListPage() {
 
         {/* Pagination */}
         {pagination && pagination.pages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t p-3 sm:px-4 sm:py-3">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Showing <span className="font-mono font-medium">{(pagination.page - 1) * pagination.limit + 1}</span>–<span className="font-mono font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-mono font-medium">{pagination.total.toLocaleString('en-IN')}</span>
             </p>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="size-8" disabled={pagination.page <= 1} onClick={() => setPage(1)}>
+            <div className="flex items-center justify-center gap-1">
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={pagination.page <= 1} onClick={() => setPage(1)}>
                 <ChevronsLeft className="size-4" />
               </Button>
-              <Button variant="outline" size="icon" className="size-8" disabled={pagination.page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={pagination.page <= 1} onClick={() => setPage((p) => p - 1)}>
                 <ChevronLeft className="size-4" />
               </Button>
               <span className="px-3 text-sm font-mono">{pagination.page} / {pagination.pages}</span>
-              <Button variant="outline" size="icon" className="size-8" disabled={pagination.page >= pagination.pages} onClick={() => setPage((p) => p + 1)}>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={pagination.page >= pagination.pages} onClick={() => setPage((p) => p + 1)}>
                 <ChevronRight className="size-4" />
               </Button>
-              <Button variant="outline" size="icon" className="size-8" disabled={pagination.page >= pagination.pages} onClick={() => setPage(pagination.pages)}>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={pagination.page >= pagination.pages} onClick={() => setPage(pagination.pages)}>
                 <ChevronsRight className="size-4" />
               </Button>
             </div>

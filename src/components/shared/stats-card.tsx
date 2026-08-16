@@ -37,7 +37,7 @@ export function StatsCard({
 
   return (
     <motion.div
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
     >
       <Card className={cn('glass-card gap-0 py-0 overflow-hidden', className)}>
@@ -85,7 +85,7 @@ export function StatsCard({
               <div
                 className={cn(
                   'flex size-10 shrink-0 items-center justify-center rounded-xl',
-                  iconColor ?? 'bg-primary/10 text-primary'
+                  iconColor ?? 'bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary'
                 )}
               >
                 <Icon className="size-5" />

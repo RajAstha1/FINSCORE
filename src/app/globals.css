@@ -109,8 +109,8 @@
   --accent: #1E293B;
   --accent-foreground: #14B8A6;
   --destructive: #EF4444;
-  --border: rgba(148, 163, 184, 0.15);
-  --input: rgba(148, 163, 184, 0.2);
+  --border: rgba(148, 163, 184, 0.2);
+  --input: rgba(148, 163, 184, 0.3);
   --ring: #14B8A6;
   --chart-1: #14B8A6;
   --chart-2: #F59E0B;
@@ -123,7 +123,7 @@
   --sidebar-primary-foreground: #042F2E;
   --sidebar-accent: #1E293B;
   --sidebar-accent-foreground: #14B8A6;
-  --sidebar-border: rgba(148, 163, 184, 0.15);
+  --sidebar-border: rgba(148, 163, 184, 0.2);
   --sidebar-ring: #14B8A6;
 }
 
@@ -134,6 +134,11 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Dark mode body gradient */
+.dark body {
+  background: linear-gradient(180deg, #0B1120 0%, #0F172A 100%);
 }
 
 /* Custom scrollbar */
@@ -152,11 +157,74 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: var(--border);
     border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary);
+  }
+  .scrollbar-thin:hover {
+    scrollbar-color: var(--primary) transparent;
+  }
+
+  /* Sidebar navigation item */
+  .sidebar-nav-item {
+    position: relative;
+    border-left: 2px solid transparent;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar-nav-item:hover {
+    border-left-color: var(--border);
+  }
+
+  /* Sidebar active indicator */
+  .sidebar-active-indicator {
+    border-left-color: var(--primary) !important;
+  }
+  .sidebar-active-indicator::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--primary), color-mix(in srgb, var(--primary) 60%, transparent));
+    border-radius: 0 2px 2px 0;
   }
 
   /* Glassmorphism card */
   .glass-card {
-    @apply backdrop-blur-xl bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-white/10;
+    @apply backdrop-blur-xl bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-border/30 dark:shadow-none;
+  }
+
+  /* Card hover lift */
+  .card-hover-lift {
+    @apply hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200;
+  }
+
+  /* Data table row */
+  .data-table-row {
+    @apply border-b border-border/50 transition-colors duration-150;
+  }
+  .data-table-row:hover {
+    @apply bg-muted/50 dark:bg-muted/30;
+  }
+
+  /* Gradient border utility */
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--primary) 0%, transparent 40%, transparent 60%, var(--primary) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 
   /* Score ring animation */
@@ -187,17 +255,17 @@
     animation: fadeInUp 0.4s ease-out forwards;
   }
 
-  /* Stagger children */
+  /* Stagger children — smoother with reduced delays */
   .stagger-children > * {
     animation: fadeInUp 0.4s ease-out forwards;
     opacity: 0;
   }
   .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-children > *:nth-child(2) { animation-delay: 75ms; }
-  .stagger-children > *:nth-child(3) { animation-delay: 150ms; }
-  .stagger-children > *:nth-child(4) { animation-delay: 225ms; }
-  .stagger-children > *:nth-child(5) { animation-delay: 300ms; }
-  .stagger-children > *:nth-child(6) { animation-delay: 375ms; }
-  .stagger-children > *:nth-child(7) { animation-delay: 450ms; }
-  .stagger-children > *:nth-child(8) { animation-delay: 525ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
 }

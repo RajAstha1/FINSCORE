@@ -239,3 +239,226 @@ Rewrote `/home/z/my-project/src/components/dashboard/executive-dashboard.tsx` to
 
 ### Lint
 - Passes `bun run lint` with zero errors after fixing React Compiler `preserve-manual-memoization` (changed `data?.statusDistribution` / `data?.gradeDistribution` / `data?.summary` deps to `data`).
+
+---
+
+## Task 1: Sidebar Bug Fix & UI Polish
+**Agent:** full-stack-developer
+**Date:** 2025-07-22
+
+### Summary
+Fixed critical sidebar navigation bug, added Partner Portal to main nav, and comprehensively improved the sidebar, header, and global styles.
+
+### Files Modified
+
+1. **`src/components/layout/app-sidebar.tsx`**
+   - **CRITICAL BUG FIX**: `ADMIN_SUB_ITEMS` had `{ page: 'partner-portal', label: 'Feature Flags', icon: Flag }` which incorrectly pointed 'partner-portal' page to a 'Feature Flags' label. Fixed by replacing with `{ page: 'partner-portal', label: 'Partner Portal', icon: Handshake }`. The old Feature Flags sub-item was removed since Feature Flags already exists as a tab in the Settings page.
+   - **Added Partner Portal to main NAV_ITEMS**: `{ page: 'partner-portal', label: 'Partner Portal', icon: Handshake, roles: ['partner', 'super_admin'] }` — visible to partner and super_admin users in the main navigation section.
+   - **Gradient sidebar background**: Desktop sidebar now uses `bg-gradient-to-b from-card to-muted/30` for subtle depth.
+   - **Active nav items**: Added left border indicator via `sidebar-active-indicator` CSS class (3px gradient bar using `::before` pseudo-element), stronger `bg-primary/10` background, and `font-semibold`.
+   - **Hover animations**: Nav items now have `transition-all duration-200 ease-out`, icon scales on hover (`group-hover:scale-110`), and hover reveals a subtle left border (`border-left-color: var(--border)`).
+   - **Desktop tooltips**: Wrapped nav items in shadcn `Tooltip` component (right-aligned) on desktop only via `isDesktop` prop.
+   - **Section divider labels**: Added `SectionLabel` component rendering 'NAVIGATION' and 'ADMINISTRATION' in small uppercase muted text (`text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60`).
+   - **Admin collapsible improvements**: Replaced `ChevronDown/ChevronRight` toggle with a single `ChevronRight` that rotates 90° on open (`transition-transform duration-300`), used `data-[state=open/closed]:animate-accordion-down/up` for smooth height animation, replaced `border-l` with `border-l-2 border-border/50` for sub-items.
+   - **User section improvements**: Avatar now has `ring-2 ring-primary/10`, user area wrapped in a rounded container with hover state (`hover:bg-accent/50`), logout button has destructive hover with `hover:bg-destructive/10` transition.
+   - **Removed `Flag` import**, added `Handshake` import from lucide-react.
+   - **Removed `useIsMobile` import** (no longer used directly in this file).
+   - Extracted `NavItemButton` component for DRY nav item rendering with optional tooltip.
+
+2. **`src/components/layout/app-header.tsx`**
+   - **Search button**: Added `border-border/80 hover:border-primary/30 hover:bg-accent/50 transition-colors duration-200` for more prominent subtle border and hover feedback.
+   - **Notification dropdown**: Replaced static bell icon with a full `DropdownMenu` containing: (a) header with 'Notifications' label and unread count badge, (b) `ScrollArea` with max-h-72 containing 4 sample notifications (Application Approved/emerald, Portfolio Risk Alert/amber, Model Drift Detected/blue, Bulk Referral Processed/teal), each with icon in a circle, title with unread dot, 2-line description, and relative timestamp, (c) unread notifications have `bg-primary/5` background, (d) 'View all notifications' link at bottom. Bell icon now shows unread count badge (red circle with number) instead of just a ping dot.
+   - **User dropdown polish**: User trigger button now uses `rounded-full` and `hover:bg-accent/50`. Dropdown content shows avatar with ring inside the label (larger 36px with name/email beside it). Added `Settings` menu item between Profile and Sign Out. All menu items have explicit `cursor-pointer`.
+   - Added imports: `Settings`, `CreditCard`, `AlertTriangle`, `CheckCircle2`, `Info`, `ScrollArea`.
+
+3. **`next.config.ts`**
+   - Added `devIndicators: false` to hide the Next.js Dev Tools overlay ('N' button).
+
+4. **`src/app/globals.css`**
+   - **`.sidebar-nav-item` class**: Adds `position: relative`, `border-left: 2px solid transparent`, and `transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)`. Hover state reveals left border in `var(--border)` color.
+   - **`.sidebar-active-indicator` class**: Forces `border-left-color: var(--primary) !important`. Uses `::before` pseudo-element to render a 3px-wide gradient bar (solid primary → 60% primary with transparency) on the left edge, positioned with 4px top/bottom inset and rounded right corners.
+   - **`.scrollbar-thin` hover improvements**: WebKit scrollbar thumb now has `transition: background-color 0.2s ease` and changes to `var(--primary)` color on hover. Firefox scrollbar also changes via `.scrollbar-thin:hover { scrollbar-color: var(--primary) transparent }`.
+
+5. **`src/components/layout/app-shell.tsx`** (verified, no changes needed)
+   - Footer sticky behavior confirmed correct: outer div is `min-h-screen flex`, inner content is `flex-1 flex flex-col min-h-screen`, main is `flex-1`, footer has `mt-auto`. This is the correct sticky footer pattern.
+
+### Lint
+- Passes `bun run lint` with zero errors.
+
+---
+
+## Task 2: Executive Dashboard — 9 UI/UX Fixes
+**Agent:** full-stack-developer
+**Date:** 2025-07-22
+
+### Summary
+Rewrote `/home/z/my-project/src/components/dashboard/executive-dashboard.tsx` with 9 targeted improvements to chart UX, table styling, accessibility, and visual polish. All existing functionality (data fetching, navigation, animations, shared components) preserved intact.
+
+### File Modified
+
+1. **`/home/z/my-project/src/components/dashboard/executive-dashboard.tsx`** (762 → 536 lines)
+   - **[1] ADD CHART LEGEND to Area Chart**: Added custom legend ABOVE the AreaChart (below the title) with three items: Approved (teal dot + label), Pending (amber dot + label), Rejected (red dot + label). Styled with `flex items-center gap-4 text-xs` and colored `w-2.5 h-2.5 rounded-full` dots.
+   - **[2] FIX Y-AXIS UNITS**: Added Y-axis label `'Applications'` via `label={{ value: 'Applications', angle: -90, position: 'insideLeft' }}` prop on `<YAxis>`. Added `tickFormatter={(v) => String(Math.round(v))}` to show integer-only tick values.
+   - **[3] ADD DATA LABELS to Bar Chart**: Added `label={{ position: 'right', fill: 'var(--foreground)', fontSize: 11, fontWeight: 500 }}` prop to the `<Bar>` component in the horizontal 'Top Schemes' chart. Increased right margin from 20 to 40 to accommodate labels.
+   - **[4] FIX TABLE STYLING**: (a) Added `even:bg-muted/20` zebra striping via `idx % 2 === 0` conditional class. (b) Improved row hover to `hover:bg-primary/5 transition-colors duration-150`. (c) Added `border-l-2` accent on the score `<td>` with `scoreBorderColor()` helper returning color-matched left border (emerald/amber/orange/red). (d) Changed date column from `text-right` to `text-left` for both header `<th>` and data `<td>`.
+   - **[5] FIX ACCESSIBILITY — BADGE CONTRAST**: Changed change-percentage badges in StatCard: positive `bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300`, negative `bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300`.
+   - **[6] IMPROVE DONUT CHART**: (a) Added `renderPieLabel()` custom SVG label renderer using `<text>` elements placed at mid-radius of each slice, only rendering when `percent >= 0.05` (>5%), showing percentage in white bold text. (b) Added `<Label>` from recharts at center position showing total count in donut hole (e.g. '2,847\ntotal'). Added `gradeTotal` derived via `useMemo`.
+   - **[7] CHART RESPONSIVENESS**: Wrapped all `ResponsiveContainer` instances in divs with responsive height classes: Area chart `h-64 sm:h-[300px]`, Donut chart `h-56 sm:h-[240px]`, Bar chart `h-64 sm:h-[300px]`. `ResponsiveContainer` uses `height="100%"` to inherit parent height.
+   - **[8] IMPROVE STAT CARDS**: (a) Added `iconBorderColor()` helper that maps iconBg color names to matching border colors (e.g. teal → `border-teal-200 dark:border-teal-800`). Icon circle now has `border` class with computed color. (b) Added `cursor-pointer` and kept `hover:shadow-md transition-shadow duration-200` on stat card `<Card>`. (c) Changed value text from `text-2xl` to `text-3xl`.
+   - **[9] CARD IMPROVEMENTS**: (a) Added `hover:shadow-md transition-shadow duration-200` to all chart/table cards. (b) Removed all three `<MoreHorizontal>` menu buttons and their wrapper `<div className="flex items-center justify-between">` containers from the Area Chart, Pie Chart, and Bar Chart cards — the `CardTitle` is now directly in `CardHeader` without a sibling button.
+   - Removed unused `StatsCard` import (was imported but not used).
+   - Removed unused `MoreHorizontal` import.
+   - Added `Label` import from `recharts` for donut center text.
+   - Added `scoreBorderColor()` and `iconBorderColor()` helper functions.
+
+### Lint
+- Passes `bun run lint` with zero errors.
+
+---
+
+## Task 5: Login Page — 10 UI/UX Polish Fixes
+**Agent:** full-stack-developer
+**Date:** 2025-07-22
+
+### Summary
+Rewrote `/home/z/my-project/src/components/auth/login-page.tsx` with 10 targeted improvements covering WCAG contrast compliance, visual richness, form UX, mobile experience, and code cleanliness. All existing functionality (login form, demo quick-fill, animations, auth store integration) preserved intact.
+
+### File Modified
+
+1. **`/home/z/my-project/src/components/auth/login-page.tsx`**
+   - **[1] FIX LEFT PANEL TEXT CONTRAST (WCAG AA)**: Increased opacity on left panel text — body paragraph `text-teal-100/60` → `text-teal-100/80`, feature card descriptions `text-teal-100/50` → `text-teal-100/70`, trust badge text `text-teal-100/40` → `text-teal-100/60`.
+   - **[2] IMPROVE DEMO CREDENTIALS SECTION**: Wrapped demo account buttons in `rounded-xl p-3.5 bg-muted/40 border border-border/50` container. Changed role name to `text-sm font-bold text-slate-800 dark:text-slate-200` and email to `text-[11px] text-muted-foreground font-normal` for clearer visual hierarchy.
+   - **[3] IMPROVE LOGIN FORM CARD**: Added subtle inner top highlight via `before:` pseudo-element with white gradient (`before:from-white/60`). Increased form field spacing from `space-y-5` to `space-y-6`. Added 'Forgot password?' link next to Password label (`text-xs text-primary hover:underline cursor-pointer`).
+   - **[4] IMPROVE INPUT STYLING**: Added `focus-visible:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]` to both email and password inputs for a teal focus ring animation.
+   - **[5] SIMPLIFY SIGN IN BUTTON**: Removed double-nested `<Button asChild><motion.button type='submit'>` anti-pattern. Replaced with single `<Button type='submit'>` wrapped in `<motion.div whileHover/whileTap>` for animation. Upgraded shadow to `shadow-lg shadow-teal/25 hover:shadow-xl hover:shadow-teal/30`.
+   - **[6] IMPROVE MOBILE LOGIN**: Changed right panel padding from `py-8 lg:py-0` to `py-12 lg:py-0` for less cramped mobile experience.
+   - **[7] ADD SUBTLE BACKGROUND PATTERN**: Added dot pattern overlay on right panel using `radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)` with `background-size: 24px 24px`, layered beneath the existing gradient via CSS comma-separated backgrounds.
+   - **[8] COPYRIGHT FOOTER**: Changed style from `text-slate-400` to `text-muted-foreground/60` for subtlety. Added bullet (`•`) separators and non-functional 'Privacy Policy' and 'Terms' links styled with `cursor-pointer hover:text-foreground transition-colors`.
+   - **[9] CHECK UNUSED IMPORTS**: Verified `Users` import from lucide-react is still actively used in the trust badges section — kept it.
+   - **[10] LEFT PANEL MOBILE GRADIENT**: Added `before:bg-gradient-to-b before:from-teal/5 before:to-transparent before:absolute before:inset-0 before:z-0` on the right panel so mobile users get a subtle brand-tinted gradient at the top, compensating for the hidden left panel.
+
+### Lint
+- Passes `bun run lint` with zero errors.
+- Dev server compiles successfully (280ms).
+---
+
+## Task 6: Mobile Responsiveness — Top 4 Impactful Fixes
+**Agent:** full-stack-developer
+**Date:** 2025-07-22
+
+### Summary
+Fixed critical mobile responsiveness issues across 4 files. The primary root cause was `overflow-hidden` on parent `<Card>` elements that contained tables with `overflow-x-auto` scroll containers — the parent's `overflow-hidden` was clipping and preventing horizontal scrolling on mobile viewports.
+
+### Files Modified
+
+1. **`/home/z/my-project/src/components/pages/applications-list.tsx`**
+   - **Verified existing mobile patterns** (all already correct):
+     - Table wrapper already had `overflow-x-auto` ✓
+     - Filter row already stacked with `flex-col sm:flex-row` ✓
+     - Action buttons already full-width on mobile via `w-full sm:w-auto` + `flex-1 sm:flex-none` ✓
+   - **Fix applied**: Removed `overflow-hidden` from the data table `<Card>` (line 335). The inner scroll container (`max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin`) was being clipped by the parent Card's `overflow-hidden`, making horizontal table scrolling non-functional on mobile.
+
+2. **`/home/z/my-project/src/components/pages/beneficiaries-list.tsx`**
+   - **Verified existing mobile patterns** (all already correct):
+     - Table wrapper already had `overflow-x-auto` ✓
+     - Filter row already stacked with `flex-col sm:flex-row` ✓
+     - "Clear all" button already had `w-full sm:w-auto` ✓
+   - **Fix applied**: Same as above — removed `overflow-hidden` from the data table `<Card>` (line 185) to unblock horizontal scrolling.
+
+3. **`/home/z/my-project/src/components/pages/application-detail.tsx`**
+   - **Verified existing mobile patterns** (all already correct):
+     - TabsList already wrapped in `overflow-x-auto` container with `min-w-max` on TabsList ✓
+     - SHAP waterfall chart already wrapped in `overflow-x-auto` with `min-w-[400px]` ✓
+   - **Fix applied**: Removed `overflow-hidden` from two `<Card>` elements:
+     - Feature Weights table Card (was line 478) — inner `overflow-x-auto` was being clipped
+     - Repayments table Card (was line 567) — inner `overflow-x-auto` was being clipped
+
+4. **`/home/z/my-project/src/components/shared/page-header.tsx`**
+   - **Verified**: Already implements correct mobile-first responsive pattern.
+     - Root div: `flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between`
+     - Actions wrapper: `flex flex-wrap items-center gap-2 shrink-0 mt-3 sm:mt-0`
+   - **No changes needed** — actions already wrap below the title on mobile.
+
+### Lint
+- Passes `bun run lint` with zero errors.
+
+### Key Insight
+The `overflow-hidden` class on `<Card>` is commonly used for rounded corner clipping, but it creates a silent failure mode: child elements with `overflow-x-auto` appear to have scrolling capability but the parent clips the overflow, making horizontal scroll invisible and non-functional. The fix is to remove `overflow-hidden` from Cards that contain horizontally-scrollable content, letting the inner scroll container manage its own overflow.
+
+---
+
+## Task 7: Dark Mode & Polish Improvements
+**Agent:** full-stack-developer
+**Date:** 2025-07-22
+
+### Files Modified
+
+1. **`/home/z/my-project/src/components/shared/stats-card.tsx`**
+   - Added `dark:bg-primary/15 dark:text-primary` to the icon container for proper dark mode contrast.
+   - Enhanced hover animation: added `scale: 1.01` to `whileHover` for a subtle lift + grow effect (spring-based, already smooth).
+   - Glass-card class now uses updated global styles with proper dark mode borders.
+
+2. **`/home/z/my-project/src/components/shared/empty-state.tsx`**
+   - Icon container: added `dark:bg-muted/40` for subtle dark mode background.
+   - Icon color: changed from `text-muted-foreground/60` to `text-muted-foreground/70 dark:text-muted-foreground/50` for better dark mode visibility.
+   - Enhanced appear animation: initial state includes `scale: 0.96` for a gentle pop-in, duration increased to 0.5s.
+   - Staggered reveal: icon, title, description, and button each animate in sequence with incremental delays (0.1s, 0.2s, 0.3s, 0.4s).
+
+3. **`/home/z/my-project/src/components/shared/status-badge.tsx`**
+   - All 15 status variants updated with proper `dark:` prefix styles.
+   - Dark mode backgrounds use `/50` opacity (up from `/40`) for better visibility against dark surfaces.
+   - Dark mode borders use `/60` on the 700-level color scale (e.g., `dark:border-blue-700/60`) for crisper edges.
+   - `draft` status: added explicit dark mode styles (`dark:bg-slate-700/50 dark:text-slate-300 dark:border-slate-600/60`).
+   - All badges use brighter `-300` text colors in dark mode for strong contrast.
+
+4. **`/home/z/my-project/src/components/shared/grade-badge.tsx`**
+   - All 7 grade variants (A+, A, B+, B, C+, C, D) updated with `/50` dark bg opacity (up from `/40`).
+   - Dark mode borders use `/60` on 700-level color scale for consistency with status-badge.
+
+5. **`/home/z/my-project/src/components/shared/score-ring.tsx`**
+   - Added `strokeDark` color to all grade mappings (brighter variants: `#34D399`, `#2DD4BF`, `#FBBF24`, `#FB923C`, `#F87171`).
+   - SVG renders two gradient definitions (light + dark) and two `<motion.circle>` arcs toggled via `dark:hidden` / `hidden dark:block`.
+   - Dark mode bg opacity increased to `/15` (from `/10`) for visible container contrast.
+   - Ring wrapper: added responsive sizing `w-36 h-36 lg:w-40 lg:h-40` for larger desktop display.
+
+6. **`/home/z/my-project/src/app/globals.css`**
+   - **`glass-card`**: updated to `dark:border-border/30 dark:shadow-none` (removed `dark:border-white/10`, added semantic border variable and no shadow in dark).
+   - **New `.card-hover-lift`**: `hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200`.
+   - **New `.data-table-row`**: consistent border + hover styling (`bg-muted/50 dark:bg-muted/30`).
+   - **New `.gradient-border`**: pseudo-element with 135deg gradient mask-composite technique for a gradient border effect on any card.
+   - **`.stagger-children`**: reduced delay increments from 75ms to 50ms for smoother cascading animation (total for 8 items: 350ms vs 525ms).
+
+7. **`/home/z/my-project/src/components/layout/app-shell.tsx`**
+   - **Footer gradient border**: replaced `border-t` with a `::before` pseudo-element div: `before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-transparent via-border before:to-transparent`.
+   - **Splash screen**: added `SplashScreen` component with Shield icon + "Arogya FinScore" text. Fades in (scale + opacity), holds briefly, then fades out after 1.2s. Uses `AnimatePresence` and `useState` to manage visibility.
+
+8. **Dark mode globals.css improvements**
+   - Added `.dark body { background: linear-gradient(180deg, #0B1120 0%, #0F172A 100%); }` for a subtle depth gradient.
+   - Card border opacity increased from `0.15` to `0.2` for better visibility in dark mode.
+   - Input border opacity increased from `0.2` to `0.3` for improved form field contrast.
+   - Sidebar border opacity also increased from `0.15` to `0.2` for consistency.
+
+### Lint
+- Passes `bun run lint` with zero errors.
+
+---
+
+## Task 8: Final UI/UX Verification & Hotfixes
+**Agent:** main (orchestrator)
+**Date:** 2025-07-23
+
+### Summary
+Comprehensive browser-based verification using VLM analysis. Fixed 4 remaining issues after parallel agent work.
+
+### Issues Found & Fixed
+1. Bar chart data labels invisible: changed fill from CSS var to direct color
+2. Zebra striping logic inverted: fixed conditional class
+3. Footer gradient too subtle: increased to 2px with 50% opacity
+4. Login dot pattern invisible: changed to teal-tinted 6% opacity
+
+### Verification Results
+- Dashboard (Light): 9/10 — all features verified
+- Dark Mode: 9/10 — professional, high contrast
+- Mobile (375x812): 5/5 PASS
+- Login Page: 5/5 PASS
+- Lint: zero errors

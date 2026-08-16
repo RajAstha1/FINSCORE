@@ -130,9 +130,9 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in-up">
+      <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
         <PageHeader title="Reports & Analytics" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
         <Skeleton className="h-80" />
@@ -142,7 +142,7 @@ export default function ReportsPage() {
 
   return (
     <motion.div
-      className="space-y-6 animate-fade-in-up"
+      className="space-y-4 sm:space-y-6 animate-fade-in-up"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -151,7 +151,7 @@ export default function ReportsPage() {
         title="Reports & Analytics"
         actions={
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[160px] h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="1month">Last 1 Month</SelectItem>
               <SelectItem value="3months">Last 3 Months</SelectItem>
@@ -163,17 +163,19 @@ export default function ReportsPage() {
         }
       />
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="disbursement">Disbursement</TabsTrigger>
-          <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-          <TabsTrigger value="statewise">State-wise</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="overview" className="space-y-3 sm:space-y-4">
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="inline-flex min-w-max">
+            <TabsTrigger value="overview" className="h-11">Overview</TabsTrigger>
+            <TabsTrigger value="disbursement" className="h-11">Disbursement</TabsTrigger>
+            <TabsTrigger value="portfolio" className="h-11">Portfolio</TabsTrigger>
+            <TabsTrigger value="statewise" className="h-11">State-wise</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
             <StatsCard title="Total Disbursed" value={formatCurrency(portfolio?.totalDisbursedAmount ?? 0)} icon={IndianRupee} iconColor="bg-primary/10 text-primary" />
             <StatsCard title="Active Loans" value={portfolio?.totalDisbursed ?? 0} icon={FileText} iconColor="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
             <StatsCard title="Average Score" value={portfolio ? (data?.stateLoanData?.reduce((s, st) => s + st.avgScore, 0) / Math.max(data.stateLoanData.length, 1)).toFixed(0) : '0'} icon={TrendingUp} iconColor="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
@@ -190,7 +192,7 @@ export default function ReportsPage() {
               {approvalTrend.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No trend data available.</p>
               ) : (
-                <div className="h-72">
+                <div className="h-56 sm:h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={approvalTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -210,7 +212,7 @@ export default function ReportsPage() {
         </TabsContent>
 
         {/* Disbursement Tab */}
-        <TabsContent value="disbursement" className="space-y-4">
+        <TabsContent value="disbursement" className="space-y-3 sm:space-y-4">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Monthly Disbursement Amounts</CardTitle>
@@ -219,7 +221,7 @@ export default function ReportsPage() {
               {approvalTrend.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No data.</p>
               ) : (
-                <div className="h-72">
+                <div className="h-56 sm:h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={approvalTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -240,7 +242,7 @@ export default function ReportsPage() {
               <CardTitle className="text-base">Top Schemes by Disbursement</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="max-h-64 overflow-y-auto scrollbar-thin">
+              <div className="max-h-64 overflow-x-auto overflow-y-auto scrollbar-thin">
                 <Table>
                   <TableHeader>
                     <TableRow className="sticky top-0 bg-card z-10">
@@ -252,9 +254,9 @@ export default function ReportsPage() {
                   <TableBody>
                     {(data?.schemeDistribution ?? []).sort((a, b) => b.totalAmount - a.totalAmount).map((s) => (
                       <TableRow key={s.scheme}>
-                        <TableCell className="text-sm font-medium">{s.scheme || 'Unknown'}</TableCell>
+                        <TableCell className="text-sm font-medium whitespace-nowrap">{s.scheme || 'Unknown'}</TableCell>
                         <TableCell className="font-mono text-sm text-right tabular-nums">{s.count.toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(s.totalAmount)}</TableCell>
+                        <TableCell className="font-mono text-sm text-right tabular-nums whitespace-nowrap">{formatCurrency(s.totalAmount)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -265,8 +267,8 @@ export default function ReportsPage() {
         </TabsContent>
 
         {/* Portfolio Tab */}
-        <TabsContent value="portfolio" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="portfolio" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {/* Grade Pie */}
             <Card className="glass-card">
               <CardHeader className="pb-2">
@@ -276,7 +278,7 @@ export default function ReportsPage() {
                 {gradePieData.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">No grade data.</p>
                 ) : (
-                  <div className="h-64">
+                  <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={gradePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={3}>
@@ -300,7 +302,7 @@ export default function ReportsPage() {
                 {schemeBarData.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">No data.</p>
                 ) : (
-                  <div className="h-64">
+                  <div className="h-56 sm:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={schemeBarData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -324,36 +326,38 @@ export default function ReportsPage() {
               <CardTitle className="text-base">Portfolio Quality Metrics</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="sticky top-0 bg-card z-10">
-                    <TableHead className="font-semibold">Metric</TableHead>
-                    <TableHead className="font-semibold text-right">Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow><TableCell className="text-sm">Total Disbursed</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{portfolio?.totalDisbursed ?? 0}</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Total Disbursed Amount</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(portfolio?.totalDisbursedAmount ?? 0)}</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Total Recovered</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(portfolio?.totalRecoveredAmount ?? 0)}</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Recovery Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.recoveryRate ?? 0).toFixed(2)}%</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Default Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.defaultRate ?? 0).toFixed(2)}%</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Collection Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.collectionRate ?? 0).toFixed(2)}%</TableCell></TableRow>
-                  <TableRow><TableCell className="text-sm">Overdue Amount</TableCell><TableCell className="font-mono text-sm text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(portfolio?.overdueAmount ?? 0)}</TableCell></TableRow>
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto scrollbar-thin">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="sticky top-0 bg-card z-10">
+                      <TableHead className="font-semibold">Metric</TableHead>
+                      <TableHead className="font-semibold text-right">Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow><TableCell className="text-sm">Total Disbursed</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{portfolio?.totalDisbursed ?? 0}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Total Disbursed Amount</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(portfolio?.totalDisbursedAmount ?? 0)}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Total Recovered</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(portfolio?.totalRecoveredAmount ?? 0)}</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Recovery Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.recoveryRate ?? 0).toFixed(2)}%</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Default Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.defaultRate ?? 0).toFixed(2)}%</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Collection Rate</TableCell><TableCell className="font-mono text-sm text-right tabular-nums">{(portfolio?.collectionRate ?? 0).toFixed(2)}%</TableCell></TableRow>
+                    <TableRow><TableCell className="text-sm">Overdue Amount</TableCell><TableCell className="font-mono text-sm text-right tabular-nums text-red-600 dark:text-red-400">{formatCurrency(portfolio?.overdueAmount ?? 0)}</TableCell></TableRow>
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* State-wise Tab */}
-        <TabsContent value="statewise" className="space-y-4">
+        <TabsContent value="statewise" className="space-y-3 sm:space-y-4">
           <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">State-wise Statistics</CardTitle>
               <CardDescription>Applications, disbursements, and average scores by state</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="max-h-96 overflow-y-auto scrollbar-thin">
+              <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
                 <Table>
                   <TableHeader>
                     <TableRow className="sticky top-0 bg-card z-10">
@@ -366,10 +370,10 @@ export default function ReportsPage() {
                   <TableBody>
                     {(data?.stateLoanData ?? []).map((s) => (
                       <TableRow key={s.state}>
-                        <TableCell className="text-sm font-medium">{s.state || 'Unknown'}</TableCell>
+                        <TableCell className="text-sm font-medium whitespace-nowrap">{s.state || 'Unknown'}</TableCell>
                         <TableCell className="font-mono text-sm text-right tabular-nums">{s.totalLoans}</TableCell>
-                        <TableCell className="font-mono text-sm text-right tabular-nums">{formatCurrency(s.totalAmount)}</TableCell>
-                        <TableCell className={`font-mono text-sm text-right tabular-nums font-bold ${s.avgScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : s.avgScore < 40 ? 'text-red-600 dark:text-red-400' : ''}`}>{s.avgScore}</TableCell>
+                        <TableCell className="font-mono text-sm text-right tabular-nums whitespace-nowrap">{formatCurrency(s.totalAmount)}</TableCell>
+                        <TableCell className={`font-mono text-sm text-right tabular-nums font-bold whitespace-nowrap ${s.avgScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : s.avgScore < 40 ? 'text-red-600 dark:text-red-400' : ''}`}>{s.avgScore}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -387,7 +391,7 @@ export default function ReportsPage() {
               {stateBarData.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No state data.</p>
               ) : (
-                <div className="h-72">
+                <div className="h-56 sm:h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stateBarData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

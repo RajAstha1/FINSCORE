@@ -258,8 +258,9 @@ export default function LoginPage() {
             for Inclusive Lending
           </motion.h1>
 
+          {/* FIX #1: Improved contrast — text-teal-100/60 → text-teal-100/80 */}
           <motion.p
-            className="text-teal-100/60 text-base xl:text-lg max-w-md leading-relaxed mb-12"
+            className="text-teal-100/80 text-base xl:text-lg max-w-md leading-relaxed mb-12"
             variants={featureCardVariants}
             custom={2}
           >
@@ -295,7 +296,8 @@ export default function LoginPage() {
                     <h3 className="text-white font-semibold text-sm mb-0.5">
                       {feature.title}
                     </h3>
-                    <p className="text-teal-100/50 text-xs leading-relaxed">
+                    {/* FIX #1: Improved contrast — text-teal-100/50 → text-teal-100/70 */}
+                    <p className="text-teal-100/70 text-xs leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -311,14 +313,16 @@ export default function LoginPage() {
             custom={7}
           >
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-teal-100/40" />
-              <span className="text-teal-100/40 text-xs font-medium">
+              {/* FIX #1: Improved contrast — text-teal-100/40 → text-teal-100/60 */}
+              <Users className="w-4 h-4 text-teal-100/60" />
+              <span className="text-teal-100/60 text-xs font-medium">
                 2.4M+ Scores Generated
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber/60" />
-              <span className="text-teal-100/40 text-xs font-medium">
+              {/* FIX #1: Improved contrast — text-teal-100/40 → text-teal-100/60 */}
+              <span className="text-teal-100/60 text-xs font-medium">
                 99.2% Uptime
               </span>
             </div>
@@ -329,20 +333,26 @@ export default function LoginPage() {
       {/* ──────────────────────────────────────────────────────────────────────
           RIGHT PANEL — Login Form
       ────────────────────────────────────────────────────────────────────── */}
+      {/* FIX #6: py-8 → py-12 on mobile; FIX #10: before: gradient for mobile brand feel */}
       <motion.div
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-8 lg:py-0 min-h-screen"
-        style={{ background: 'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%)' }}
+        className="relative flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen before:bg-gradient-to-b before:from-teal/5 before:to-transparent before:absolute before:inset-0 before:z-0"
+        style={{
+          background:
+            'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%), radial-gradient(circle at 1px 1px, rgba(15,118,110,0.06) 1px, transparent 0)',
+          backgroundSize: '100% 100%, 24px 24px',
+        }}
         variants={pageVariants}
         initial="hidden"
         animate="visible"
       >
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[420px] relative z-10">
           {/* ── Mobile Logo (visible only on mobile) ───────────────────────── */}
           <motion.div
             className="flex flex-col items-center mb-8 lg:mb-10"
             variants={itemVariants}
           >
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl mb-3"
+            <div
+              className="flex items-center justify-center w-12 h-12 rounded-2xl mb-3"
               style={{ background: 'linear-gradient(135deg, #0F766E, #115E59)' }}
             >
               <Shield className="w-7 h-7 text-amber" />
@@ -357,7 +367,8 @@ export default function LoginPage() {
 
           {/* ── Card ───────────────────────────────────────────────────────── */}
           <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-xl shadow-slate-900/[0.04] rounded-2xl overflow-hidden">
+            {/* FIX #3: Added inner shadow via before pseudo-element */}
+            <Card className="border-0 shadow-xl shadow-slate-900/[0.04] rounded-2xl overflow-hidden relative before:absolute before:top-0 before:inset-x-0 before:h-px before:bg-gradient-to-r before:from-white/60 before:via-white/40 before:to-white/20 dark:before:from-white/5 dark:before:via-white/[0.03] dark:before:to-white/0 before:z-10">
               {/* Card glassmorphism header strip */}
               <div
                 className="h-1.5"
@@ -383,9 +394,10 @@ export default function LoginPage() {
               </CardHeader>
 
               <CardContent className="px-6 sm:px-8 pb-8">
+                {/* FIX #3: space-y-5 → space-y-6 for more breathing room */}
                 <motion.form
                   onSubmit={handleSubmit(onSubmit)}
-                  className="space-y-5"
+                  className="space-y-6"
                   variants={itemVariants}
                   noValidate
                 >
@@ -399,12 +411,13 @@ export default function LoginPage() {
                     </Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      {/* FIX #4: Added focus-visible:shadow ring animation */}
                       <Input
                         id="email"
                         type="email"
                         placeholder="you@example.com"
                         autoComplete="email"
-                        className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200"
+                        className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]"
                         {...register('email')}
                       />
                     </div>
@@ -424,20 +437,27 @@ export default function LoginPage() {
 
                   {/* Password Field */}
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="password"
-                      className="text-sm font-medium text-slate-700"
-                    >
-                      Password
-                    </Label>
+                    {/* FIX #3: Added Forgot password? link next to label */}
+                    <div className="flex items-center justify-between">
+                      <Label
+                        htmlFor="password"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        Password
+                      </Label>
+                      <span className="text-xs text-primary hover:underline cursor-pointer">
+                        Forgot password?
+                      </span>
+                    </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      {/* FIX #4: Added focus-visible:shadow ring animation */}
                       <Input
                         id="password"
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
                         autoComplete="current-password"
-                        className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200"
+                        className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal/30 focus-visible:border-teal/50 text-sm transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]"
                         {...register('password')}
                       />
                       <button
@@ -468,51 +488,47 @@ export default function LoginPage() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Submit Button */}
-                  <motion.div className="pt-1" variants={itemVariants}>
+                  {/* FIX #5: Simplified — single Button with motion.div wrapper, removed double-nested button */}
+                  <motion.div
+                    className="pt-1"
+                    variants={itemVariants}
+                    whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
+                    whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
+                  >
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full h-11 rounded-xl text-sm font-semibold text-white shadow-lg shadow-teal/20 hover:shadow-teal/30 transition-all duration-300"
+                      className="w-full h-11 rounded-xl text-sm font-semibold text-white shadow-lg shadow-teal/25 hover:shadow-xl hover:shadow-teal/30 transition-all duration-300"
                       style={{
                         background:
                           'linear-gradient(135deg, #0F766E 0%, #115E59 100%)',
                       }}
-                      asChild
                     >
-                      <motion.button
-                        type="submit"
-                        disabled={isSubmitting}
-                        whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
-                        whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
-                        className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                      >
-                        <AnimatePresence mode="wait">
-                          {isSubmitting ? (
-                            <motion.span
-                              key="loading"
-                              className="flex items-center gap-2"
-                              initial={{ opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -8 }}
-                            >
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Signing in…
-                            </motion.span>
-                          ) : (
-                            <motion.span
-                              key="idle"
-                              className="flex items-center gap-2"
-                              initial={{ opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -8 }}
-                            >
-                              Sign in
-                              <ArrowRight className="w-4 h-4" />
-                            </motion.span>
-                          )}
-                        </AnimatePresence>
-                      </motion.button>
+                      <AnimatePresence mode="wait">
+                        {isSubmitting ? (
+                          <motion.span
+                            key="loading"
+                            className="flex items-center gap-2"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                          >
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Signing in…
+                          </motion.span>
+                        ) : (
+                          <motion.span
+                            key="idle"
+                            className="flex items-center gap-2"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                          >
+                            Sign in
+                            <ArrowRight className="w-4 h-4" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </Button>
                   </motion.div>
                 </motion.form>
@@ -526,32 +542,36 @@ export default function LoginPage() {
                     <Sparkles className="w-3.5 h-3.5 text-amber" />
                     Demo Credentials
                   </p>
-                  <div className="flex flex-col gap-2">
-                    {DEMO_ACCOUNTS.map((account) => (
-                      <button
-                        key={account.email}
-                        type="button"
-                        onClick={() =>
-                          handleQuickFill(account.email, account.password)
-                        }
-                        className="group flex items-center justify-between rounded-xl px-3.5 py-2.5 bg-slate-50/60 hover:bg-teal/5 border border-slate-100 hover:border-teal/15 transition-all duration-200 text-left"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                            <Shield className="w-3.5 h-3.5 text-teal" />
+                  {/* FIX #2: Wrapped in subtle background card for visual grouping */}
+                  <div className="rounded-xl p-3.5 bg-muted/40 border border-border/50">
+                    <div className="flex flex-col gap-2">
+                      {DEMO_ACCOUNTS.map((account) => (
+                        <button
+                          key={account.email}
+                          type="button"
+                          onClick={() =>
+                            handleQuickFill(account.email, account.password)
+                          }
+                          className="group flex items-center justify-between rounded-xl px-3.5 py-2.5 bg-slate-50/60 hover:bg-teal/5 border border-slate-100 hover:border-teal/15 transition-all duration-200 text-left"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                              <Shield className="w-3.5 h-3.5 text-teal" />
+                            </div>
+                            <div className="min-w-0">
+                              {/* FIX #2: Bolder role name, lighter email */}
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                                {account.label}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground font-normal truncate">
+                                {account.email}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-700 truncate">
-                              {account.label}
-                            </p>
-                            <p className="text-[11px] text-slate-400 truncate">
-                              {account.email}
-                            </p>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal transition-colors flex-shrink-0" />
-                      </button>
-                    ))}
+                          <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal transition-colors flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
 
@@ -578,11 +598,20 @@ export default function LoginPage() {
           </motion.div>
 
           {/* ── Bottom Copyright ──────────────────────────────────────────── */}
+          {/* FIX #8: Subtler copyright with Privacy Policy and Terms links */}
           <motion.p
-            className="text-center text-[11px] text-slate-400 mt-8"
+            className="text-center text-[11px] text-muted-foreground/60 mt-8"
             variants={itemVariants}
           >
             &copy; {new Date().getFullYear()} Arogya FinScore. All rights reserved.
+            <span className="mx-1.5">&bull;</span>
+            <span className="cursor-pointer hover:text-foreground transition-colors">
+              Privacy Policy
+            </span>
+            <span className="mx-1.5">&bull;</span>
+            <span className="cursor-pointer hover:text-foreground transition-colors">
+              Terms
+            </span>
           </motion.p>
         </div>
       </motion.div>

@@ -134,7 +134,7 @@ export default function BeneficiariesListPage() {
 
   return (
     <motion.div
-      className="space-y-6 animate-fade-in-up"
+      className="space-y-4 sm:space-y-6 animate-fade-in-up"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -143,53 +143,53 @@ export default function BeneficiariesListPage() {
 
       {/* Search & Filters */}
       <Card className="glass-card">
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search by name, Aadhaar, PAN, phone, or email..."
               value={search}
               onChange={(e) => updateSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-11"
             />
           </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
               <Filter className="size-4" />
               <span className="font-medium">Filters:</span>
             </div>
-            <div className="flex-1 min-w-[180px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[180px]">
               <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v === '_all' ? '' : v); setPage(1); }}>
-                <SelectTrigger><SelectValue placeholder="State" /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue placeholder="State" /></SelectTrigger>
                 <SelectContent className="max-h-64">
                   <SelectItem value="_all">All States</SelectItem>
                   {INDIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="sm:flex-1 min-w-0 sm:min-w-[140px]">
               <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v === '_all' ? '' : v); setPage(1); }}>
-                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Category" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_all">All Categories</SelectItem>
                   {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">Clear all</Button>
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground h-11 w-full sm:w-auto">Clear all</Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Data Table */}
-      <Card className="glass-card overflow-hidden">
+      <Card className="glass-card">
         {isLoading ? (
-          <div className="space-y-3 p-4">
+          <div className="space-y-3 p-4 sm:p-6">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
                 <Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" />
                 <Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-10" />
-                <Skeleton className="h-4 w-24" /><Skeleton className="h-8 w-8" />
+                <Skeleton className="h-4 w-24" /><Skeleton className="h-11 w-11" />
               </div>
             ))}
           </div>
@@ -199,7 +199,7 @@ export default function BeneficiariesListPage() {
           <EmptyState title="No beneficiaries found" description="No beneficiaries match your current filters."
             action={{ label: 'Clear Filters', onClick: clearFilters }} />
         ) : (
-          <div className="max-h-96 overflow-y-auto scrollbar-thin">
+          <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
             <Table>
               <TableHeader>
                 <TableRow className="sticky top-0 bg-card z-10">
@@ -225,18 +225,18 @@ export default function BeneficiariesListPage() {
                       className="border-b border-border/50 hover:bg-muted/40 transition-colors cursor-pointer"
                       onClick={() => navigate('beneficiary-detail', { id: b.id })}
                     >
-                      <TableCell className="text-sm font-medium">{b.name || '—'}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{maskAadhaar(b.aadhaarNumber)}</TableCell>
-                      <TableCell className="font-mono text-sm">{b.phone || '—'}</TableCell>
-                      <TableCell className="text-sm">{b.state || '—'}</TableCell>
-                      <TableCell className="text-sm">{b.category || '—'}</TableCell>
-                      <TableCell className={`font-mono text-sm text-right font-bold tabular-nums ${b.creditScore != null && b.creditScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : b.creditScore != null && b.creditScore < 40 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                      <TableCell className="text-sm font-medium whitespace-nowrap">{b.name || '—'}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">{maskAadhaar(b.aadhaarNumber)}</TableCell>
+                      <TableCell className="font-mono text-sm whitespace-nowrap">{b.phone || '—'}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{b.state || '—'}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{b.category || '—'}</TableCell>
+                      <TableCell className={`font-mono text-sm text-right font-bold tabular-nums whitespace-nowrap ${b.creditScore != null && b.creditScore >= 60 ? 'text-emerald-600 dark:text-emerald-400' : b.creditScore != null && b.creditScore < 40 ? 'text-red-600 dark:text-red-400' : ''}`}>
                         {b.creditScore ?? '—'}
                       </TableCell>
                       <TableCell>{b.riskGrade ? <GradeBadge grade={b.riskGrade} size="sm" /> : <span className="text-muted-foreground text-sm">—</span>}</TableCell>
-                      <TableCell className="text-sm capitalize">{b.occupation || '—'}</TableCell>
+                      <TableCell className="text-sm capitalize whitespace-nowrap">{b.occupation || '—'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="size-8"
+                        <Button variant="ghost" size="icon" className="h-11 w-11"
                           onClick={(e) => { e.stopPropagation(); navigate('beneficiary-detail', { id: b.id }); }}>
                           <Eye className="size-4" />
                         </Button>
@@ -251,16 +251,16 @@ export default function BeneficiariesListPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t p-3 sm:px-4 sm:py-3">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Showing <span className="font-mono font-medium">{(page - 1) * pageSize + 1}</span>–<span className="font-mono font-medium">{Math.min(page * pageSize, total)}</span> of <span className="font-mono font-medium">{total.toLocaleString('en-IN')}</span>
             </p>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="size-8" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="size-4" /></Button>
-              <Button variant="outline" size="icon" className="size-8" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="size-4" /></Button>
+            <div className="flex items-center justify-center gap-1">
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="size-4" /></Button>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="size-4" /></Button>
               <span className="px-3 text-sm font-mono">{page} / {totalPages}</span>
-              <Button variant="outline" size="icon" className="size-8" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight className="size-4" /></Button>
-              <Button variant="outline" size="icon" className="size-8" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="size-4" /></Button>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight className="size-4" /></Button>
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="size-4" /></Button>
             </div>
           </div>
         )}
