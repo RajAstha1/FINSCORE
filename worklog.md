@@ -488,3 +488,26 @@ Stage Summary:
 - Added: Admin Approval panel with Approve/Reject buttons, AI recommendation display
 - Added: Sidebar badge showing pending application count (9)
 - All changes pass lint with zero errors
+
+---
+Task ID: fix-routing-framework-errors
+Agent: Main Agent
+Task: Fix all Next.js routing errors, compilation issues, and application submission flow
+
+Work Log:
+- Explored full project structure: 14 page components, 8 API routes, Prisma schema, Zustand stores
+- Identified 7 critical bugs through dev.log analysis, API testing, and browser verification
+- Fixed Prisma query error in decide route (unknown field `name` → `aadhaarName` on Beneficiary model)
+- Fixed data field mismatch across 3 frontend components (applications-list, application-detail pages, dashboard)
+- Fixed login API to return `isActive` and `phone` fields matching AuthUser interface
+- Created custom `zodResolver` for Zod 4 + react-hook-form v7 compatibility (replacing broken @hookform/resolvers v5)
+- Updated Zod 4 consent schema to use `{ message }` instead of deprecated `{ errorMap }`
+- Fixed dashboard passing `applicationNumber` instead of `id` for detail page navigation
+- Fixed API route to coerce string numeric values from HTML form inputs to proper numbers
+
+Stage Summary:
+- All 7 bugs fixed, lint passes clean, no compilation errors
+- Admin can now: view submitted applications, see beneficiary names, navigate to details, approve/reject
+- Application wizard: form validation works, consent checkboxes work, submission reaches API successfully
+- Key files modified: decide/route.ts, applications/route.ts, applications-list.tsx, application-detail.tsx (both), executive-dashboard.tsx, login-page.tsx, application-wizard.tsx, auth/login/route.ts
+- New file created: src/lib/zod-resolver.ts (custom Zod 4 resolver)

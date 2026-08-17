@@ -27,7 +27,7 @@ export async function POST(
     const application = await db.loanApplication.findUnique({
       where: { id },
       include: {
-        beneficiary: { select: { id: true, name: true } },
+        beneficiary: { select: { id: true, aadhaarName: true } },
         scores: { orderBy: { scoredAt: 'desc' }, take: 1 },
         decisions: { orderBy: { createdAt: 'desc' }, take: 1 },
       },

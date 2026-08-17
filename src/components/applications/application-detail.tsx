@@ -447,7 +447,7 @@ export function ApplicationDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Full Name</p>
-                  <p className="text-sm font-medium">{app.beneficiary.name}</p>
+                  <p className="text-sm font-medium">{app.beneficiary.aadhaarName}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Aadhaar Number</p>

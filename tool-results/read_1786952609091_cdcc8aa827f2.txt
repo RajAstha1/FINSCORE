@@ -1,0 +1,904 @@
+     1→'use client';
+     2→
+     3→import { useState } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import { toast } from 'sonner';
+     7→import {
+     8→  Card, CardHeader, CardTitle, CardDescription, CardContent,
+     9→} from '@/components/ui/card';
+    10→import { Button } from '@/components/ui/button';
+    11→import { Badge } from '@/components/ui/badge';
+    12→import { Separator } from '@/components/ui/separator';
+    13→import { Skeleton } from '@/components/ui/skeleton';
+    14→import { Progress } from '@/components/ui/progress';
+    15→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select';
+    19→import { Textarea } from '@/components/ui/textarea';
+    20→import { Label } from '@/components/ui/label';
+    21→import {
+    22→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    23→} from '@/components/ui/table';
+    24→import {
+    25→  ArrowLeft, CheckCircle, Clock, XCircle, Brain, Shield, Zap,
+    26→  Activity, FileText, User, IndianRupee, AlertTriangle, Upload,
+    27→  Calendar, Hash, Phone, MapPin, Briefcase, CreditCard, Landmark,
+    28→  ThumbsUp, ThumbsDown, Gavel, Ban, Loader2,
+    29→} from 'lucide-react';
+    30→import { useAppStore } from '@/store/use-app-store';
+    31→import { useAuthStore } from '@/store/use-auth-store';
+    32→import { PageHeader } from '@/components/shared/page-header';
+    33→import { StatusBadge } from '@/components/shared/status-badge';
+    34→import { GradeBadge } from '@/components/shared/grade-badge';
+    35→import { ScoreRing } from '@/components/shared/score-ring';
+    36→import { ShapWaterfallChart } from '@/components/shared/shap-waterfall-chart';
+    37→
+    38→/* ------------------------------------------------------------------ */
+    39→/*  Types                                                              */
+    40→/* ------------------------------------------------------------------ */
+    41→
+    42→interface ShapValue {
+    43→  feature: string;
+    44→  value: number;
+    45→  shapValue: number;
+    46→  direction: 'positive' | 'negative';
+    47→}
+    48→
+    49→interface ScoreEntry {
+    50→  id: string;
+    51→  totalScore: number;
+    52→  confidenceScore: number;
+    53→  riskGrade: string;
+    54→  modelVersion: string;
+    55→  xgboostScore: number;
+    56→  catboostScore: number;
+    57→  deepForestScore: number;
+    58→  repaymentScore: number;
+    59→  consumptionScore: number;
+    60→  shapValues: ShapValue[];
+    61→  featureWeights: Record<string, number>;
+    62→  scoredAt: string;
+    63→}
+    64→
+    65→interface OverrideEntry {
+    66→  id: string;
+    67→  originalGrade: string;
+    68→  newGrade: string;
+    69→  reason: string;
+    70→  createdAt: string;
+    71→  analyst: { name: string; email: string };
+    72→}
+    73→
+    74→interface DecisionEntry {
+    75→  id: string;
+    76→  decisionType: string;
+    77→  decisionReason: string;
+    78→  createdAt: string;
+    79→  analyst?: { name: string; email: string; role: string };
+    80→  overrides: OverrideEntry[];
+    81→}
+    82→
+    83→interface DocumentEntry {
+    84→  id: string;
+    85→  type: string;
+    86→  fileName: string;
+    87→  ocrConfidence: number | null;
+    88→  status: string;
+    89→  ocrData: string | null;
+    90→  verifiedAt: string | null;
+    91→  createdAt: string;
+    92→}
+    93→
+    94→interface RepaymentEntry {
+    95→  id: string;
+    96→  emiNumber: number;
+    97→  dueDate: string;
+    98→  dueAmount: number;
+    99→  paidAmount: number | null;
+   100→  paidDate: string | null;
+   101→  status: string;
+   102→  daysOverdue: number;
+   103→}
+   104→
+   105→interface BeneficiaryData {
+   106→  id: string;
+   107→  name: string;
+   108→  aadhaarNumber: string;
+   109→  phone: string;
+   110→  email: string;
+   111→  state: string;
+   112→  district: string;
+   113→  category: string;
+   114→  occupation: string;
+   115→  gender: string;
+   116→  dateOfBirth: string;
+   117→  educationLevel: string;
+   118→  bankName: string;
+   119→  bankAccount: string;
+   120→  bankIfsc: string;
+   121→}
+   122→
+   123→interface Application {
+   124→  id: string;
+   125→  applicationNumber: string;
+   126→  loanAmount: number;
+   127→  loanPurpose: string;
+   128→  loanTenure: number;
+   129→  interestRate: number;
+   130→  emiAmount: number;
+   131→  status: string;
+   132→  schemeType: string;
+   133→  submittedAt: string;
+   134→  decisionAt: string;
+   135→  sanctionedAt: string;
+   136→  disbursedAt: string;
+   137→  closedAt: string;
+   138→  rejectionReason: string | null;
+   139→  createdAt: string;
+   140→  beneficiary: BeneficiaryData;
+   141→  scores: ScoreEntry[];
+   142→  decisions: DecisionEntry[];
+   143→  documents: DocumentEntry[];
+   144→  repayments: RepaymentEntry[];
+   145→}
+   146→
+   147→/* ------------------------------------------------------------------ */
+   148→/*  Helpers                                                            */
+   149→/* ------------------------------------------------------------------ */
+   150→
+   151→function maskAadhaar(aadhaar?: string) {
+   152→  if (!aadhaar || aadhaar.length < 4) return '••••••••••••';
+   153→  return `${aadhaar.slice(0, 4)}••••••••${aadhaar.slice(-4)}`;
+   154→}
+   155→
+   156→function formatDate(dateStr?: string | null) {
+   157→  if (!dateStr) return '—';
+   158→  return new Date(dateStr).toLocaleDateString('en-IN', {
+   159→    day: '2-digit', month: 'short', year: 'numeric',
+   160→  });
+   161→}
+   162→
+   163→function formatDateTime(dateStr?: string | null) {
+   164→  if (!dateStr) return '—';
+   165→  return new Date(dateStr).toLocaleString('en-IN', {
+   166→    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+   167→  });
+   168→}
+   169→
+   170→function formatCurrency(amount: number) {
+   171→  return `\u20B9${amount.toLocaleString('en-IN')}`;
+   172→}
+   173→
+   174→function InfoRow({ label, value, icon: Icon }: { label: string; value: string | number | null | undefined; icon?: React.ElementType }) {
+   175→  return (
+   176→    <div className="flex items-center justify-between py-1.5 gap-2">
+   177→      <span className="text-sm text-muted-foreground flex items-center gap-1.5 shrink-0">
+   178→        {Icon && <Icon className="size-3.5" />}
+   179→        {label}
+   180→      </span>
+   181→      <span className="text-sm font-medium text-right capitalize font-mono truncate">{value ?? '—'}</span>
+   182→    </div>
+   183→  );
+   184→}
+   185→
+   186→function formatDocType(type: string) {
+   187→  return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+   188→}
+   189→
+   190→/* ------------------------------------------------------------------ */
+   191→/*  Component                                                          */
+   192→/* ------------------------------------------------------------------ */
+   193→
+   194→export default function ApplicationDetailPage() {
+   195→  const token = useAuthStore((s) => s.token)!;
+   196→  const user = useAuthStore((s) => s.user);
+   197→  const id = useAppStore((s) => s.pageParams.id);
+   198→  const goBack = useAppStore((s) => s.goBack);
+   199→  const navigate = useAppStore((s) => s.navigate);
+   200→  const queryClient = useQueryClient();
+   201→
+   202→  const [overrideGrade, setOverrideGrade] = useState('');
+   203→  const [overrideReason, setOverrideReason] = useState('');
+   204→
+   205→  const { data, isLoading, isError } = useQuery({
+   206→    queryKey: ['application', id],
+   207→    queryFn: async () => {
+   208→      const res = await fetch(`/api/applications/${id}`, {
+   209→        headers: { Authorization: `Bearer ${token}` },
+   210→      });
+   211→      if (!res.ok) throw new Error('Failed to fetch application');
+   212→      const json = await res.json();
+   213→      return json.application as Application;
+   214→    },
+   215→    enabled: !!id,
+   216→  });
+   217→
+   218→  const overrideMutation = useMutation({
+   219→    mutationFn: async () => {
+   220→      const res = await fetch(`/api/applications/${id}/decide`, {
+   221→        method: 'POST',
+   222→        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+   223→        body: JSON.stringify({
+   224→          decisionType: 'manual_review',
+   225→          overrideGrade,
+   226→          overrideReason,
+   227→        }),
+   228→      });
+   229→      if (!res.ok) throw new Error('Override failed');
+   230→      return res.json();
+   231→    },
+   232→    onSuccess: () => {
+   233→      toast.success('Grade override submitted successfully');
+   234→      queryClient.invalidateQueries({ queryKey: ['application', id] });
+   235→      setOverrideGrade('');
+   236→      setOverrideReason('');
+   237→    },
+   238→    onError: () => toast.error('Failed to submit override'),
+   239→  });
+   240→
+   241→  const app = data;
+   242→  const score = app?.scores?.[0];
+   243→  const decision = app?.decisions?.[0];
+   244→
+   245→  const repaymentPaid = app?.repayments?.filter((r) => r.status === 'paid').length ?? 0;
+   246→  const repaymentTotal = app?.repayments?.length ?? 0;
+   247→  const repaymentProgress = repaymentTotal > 0 ? (repaymentPaid / repaymentTotal) * 100 : 0;
+   248→
+   249→  const isAnalyst = user?.role === 'analyst' || user?.role === 'super_admin';
+   250→
+   251→  const [approvalDecision, setApprovalDecision] = useState<'auto_approve' | 'reject' | ''>('');
+   252→  const [approvalReason, setApprovalReason] = useState('');
+   253→  const [isApproving, setIsApproving] = useState(false);
+   254→
+   255→  const canApprove = isAnalyst && (app?.status === 'submitted' || app?.status === 'under_review');
+   256→
+   257→  const handleApproval = async (decisionType: 'auto_approve' | 'reject') => {
+   258→    if (!token || !id || !approvalReason.trim()) {
+   259→      toast.error('Please provide a reason for your decision');
+   260→      return;
+   261→    }
+   262→    setIsApproving(true);
+   263→    try {
+   264→      const res = await fetch(`/api/applications/${id}/decide`, {
+   265→        method: 'POST',
+   266→        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+   267→        body: JSON.stringify({
+   268→          decisionType,
+   269→          decisionReason: approvalReason.trim(),
+   270→          approvedAmount: decisionType === 'auto_approve' ? app.loanAmount : null,
+   271→          approvedTenure: decisionType === 'auto_approve' ? app.loanTenure : null,
+   272→          approvedRate: decisionType === 'auto_approve' ? (app.interestRate || 8.5) : null,
+   273→        }),
+   274→      });
+   275→      if (!res.ok) {
+   276→        const err = await res.json().catch(() => ({ error: 'Approval failed' }));
+   277→        throw new Error(err.error || 'Approval failed');
+   278→      }
+   279→      toast.success(decisionType === 'auto_approve' ? 'Application approved successfully!' : 'Application rejected.');
+   280→      setApprovalDecision('');
+   281→      setApprovalReason('');
+   282→      queryClient.invalidateQueries({ queryKey: ['application', id] });
+   283→    } catch (err) {
+   284→      toast.error(err instanceof Error ? err.message : 'Approval failed');
+   285→    } finally {
+   286→      setIsApproving(false);
+   287→    }
+   288→  };
+   289→
+   290→  if (isLoading) {
+   291→    return (
+   292→      <div className="space-y-4 sm:space-y-6">
+   293→        <div className="flex items-center gap-3">
+   294→          <Skeleton className="size-11" />
+   295→          <Skeleton className="h-8 w-56" />
+   296→        </div>
+   297→        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+   298→          <Skeleton className="h-48" /><Skeleton className="h-48" />
+   299→        </div>
+   300→        <Skeleton className="h-96" />
+   301→      </div>
+   302→    );
+   303→  }
+   304→
+   305→  if (isError || !app) {
+   306→    return (
+   307→      <div className="space-y-4">
+   308→        <Button variant="ghost" size="sm" className="h-11" onClick={goBack}><ArrowLeft className="size-4 mr-1" />Back</Button>
+   309→        <Card className="p-6 sm:p-8 text-center"><p className="text-muted-foreground">Application not found.</p></Card>
+   310→      </div>
+   311→    );
+   312→  }
+   313→
+   314→  return (
+   315→    <motion.div
+   316→      className="space-y-4 sm:space-y-6 animate-fade-in-up"
+   317→      initial={{ opacity: 0, y: 10 }}
+   318→      animate={{ opacity: 1, y: 0 }}
+   319→      transition={{ duration: 0.4 }}
+   320→    >
+   321→      {/* Back + Header */}
+   322→      <div className="flex items-center gap-3">
+   323→        <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" onClick={goBack}>
+   324→          <ArrowLeft className="size-4" />
+   325→        </Button>
+   326→        <PageHeader
+   327→          title={app.applicationNumber}
+   328→          description={`${formatCurrency(app.loanAmount)} — ${app.loanPurpose?.replace(/_/g, ' ')}`}
+   329→          actions={<StatusBadge status={app.status} />}
+   330→        />
+   331→      </div>
+   332→
+   333→      <Tabs defaultValue="overview" className="space-y-4">
+   334→        <div className="overflow-x-auto -mx-1 px-1">
+   335→        <TabsList className="inline-flex min-w-max">
+   336→          <TabsTrigger value="overview" className="h-11">Overview</TabsTrigger>
+   337→          <TabsTrigger value="credit-score" className="h-11">Credit Score</TabsTrigger>
+   338→          <TabsTrigger value="documents" className="h-11">Documents</TabsTrigger>
+   339→          <TabsTrigger value="repayments" className="h-11">Repayments</TabsTrigger>
+   340→          <TabsTrigger value="decision" className="h-11">Decision</TabsTrigger>
+   341→        </TabsList>
+   342→        </div>
+   343→
+   344→        {/* ──────── OVERVIEW TAB ──────── */}
+   345→        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+   346→          {/* Admin Approval Panel — shown for submitted/under_review apps when user is analyst */}
+   347→          {canApprove && (
+   348→            <motion.div
+   349→              initial={{ opacity: 0, y: -10 }}
+   350→              animate={{ opacity: 1, y: 0 }}
+   351→              transition={{ duration: 0.4 }}
+   352→            >
+   353→              <Card className="border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30">
+   354→                <CardHeader className="pb-3">
+   355→                  <CardTitle className="flex items-center gap-2 text-base">
+   356→                    <Gavel className="size-5 text-amber-600 dark:text-amber-400" />
+   357→                    Admin Approval Required
+   358→                  </CardTitle>
+   359→                  <CardDescription>
+   360→                    This application is awaiting your review. Review the details and approve or reject.
+   361→                  </CardDescription>
+   362→                </CardHeader>
+   363→                <CardContent className="space-y-4">
+   364→                  {/* AI Recommendation Banner */}
+   365→                  {decision && (
+   366→                    <div className={`rounded-lg p-3 border ${
+   367→                      decision.decisionType === 'auto_approve'
+   368→                        ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20'
+   369→                        : decision.decisionType === 'reject'
+   370→                          ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20'
+   371→                          : 'border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20'
+   372→                    }`}>
+   373→                      <div className="flex items-center gap-2 text-sm font-medium">
+   374→                        <Brain className="size-4" />
+   375→                        AI Recommendation:
+   376→                        <span className={`capitalize ${
+   377→                          decision.decisionType === 'auto_approve' ? 'text-emerald-700 dark:text-emerald-400'
+   378→                            : decision.decisionType === 'reject' ? 'text-red-700 dark:text-red-400'
+   379→                            : 'text-amber-700 dark:text-amber-400'
+   380→                        }`}>
+   381→                          {decision.decisionType?.replace(/_/g, ' ')}
+   382→                        </span>
+   383→                        {score && (
+   384→                          <>
+   385→                            <span className="text-muted-foreground">•</span>
+   386→                            <span className="font-mono">Score: {score.totalScore}</span>
+   387→                            <GradeBadge grade={score.riskGrade} size="sm" />
+   388→                          </>
+   389→                        )}
+   390→                      </div>
+   391→                      {decision.decisionReason && (
+   392→                        <p className="text-xs text-muted-foreground mt-1">{decision.decisionReason}</p>
+   393→                      )}
+   394→                    </div>
+   395→                  )}
+   396→
+   397→                  {/* Beneficiary Quick Summary */}
+   398→                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   399→                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+   400→                      <p className="text-xs text-muted-foreground">Applicant</p>
+   401→                      <p className="text-sm font-medium mt-0.5 truncate">{app.beneficiary?.name || '—'}</p>
+   402→                    </div>
+   403→                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+   404→                      <p className="text-xs text-muted-foreground">Loan Amount</p>
+   405→                      <p className="text-sm font-mono font-bold mt-0.5">{formatCurrency(app.loanAmount)}</p>
+   406→                    </div>
+   407→                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+   408→                      <p className="text-xs text-muted-foreground">Tenure</p>
+   409→                      <p className="text-sm font-medium mt-0.5">{app.loanTenure} months</p>
+   410→                    </div>
+   411→                    <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
+   412→                      <p className="text-xs text-muted-foreground">Scheme</p>
+   413→                      <p className="text-sm font-medium mt-0.5">{app.schemeType || '—'}</p>
+   414→                    </div>
+   415→                  </div>
+   416→
+   417→                  {/* Decision Buttons */}
+   418→                  <div className="space-y-3">
+   419→                    <div className="flex flex-col sm:flex-row gap-3">
+   420→                      <Button
+   421→                        className={`flex-1 h-12 text-sm font-semibold ${
+   422→                          approvalDecision === 'auto_approve'
+   423→                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+   424→                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300'
+   425→                        }`}
+   426→                        variant={approvalDecision === 'auto_approve' ? 'default' : 'outline'}
+   427→                        onClick={() => setApprovalDecision('auto_approve')}
+   428→                        disabled={isApproving}
+   429→                      >
+   430→                        <ThumbsUp className="size-4 mr-2" />
+   431→                        Approve Application
+   432→                      </Button>
+   433→                      <Button
+   434→                        className={`flex-1 h-12 text-sm font-semibold ${
+   435→                          approvalDecision === 'reject'
+   436→                            ? 'bg-red-600 hover:bg-red-700 text-white'
+   437→                            : 'bg-red-100 hover:bg-red-200 text-red-800 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-300'
+   438→                        }`}
+   439→                        variant={approvalDecision === 'reject' ? 'default' : 'outline'}
+   440→                        onClick={() => setApprovalDecision('reject')}
+   441→                        disabled={isApproving}
+   442→                      >
+   443→                        <ThumbsDown className="size-4 mr-2" />
+   444→                        Reject Application
+   445→                      </Button>
+   446→                    </div>
+   447→
+   448→                    {approvalDecision && (
+   449→                      <motion.div
+   450→                        initial={{ opacity: 0, height: 0 }}
+   451→                        animate={{ opacity: 1, height: 'auto' }}
+   452→                        exit={{ opacity: 0, height: 0 }}
+   453→                        className="space-y-3 overflow-hidden"
+   454→                      >
+   455→                        <Textarea
+   456→                          placeholder={approvalDecision === 'auto_approve'
+   457→                            ? 'Reason for approval (e.g., "Meets all criteria, good credit score...")'
+   458→                            : 'Reason for rejection (e.g., "Income too low, high risk...")'
+   459→                          }
+   460→                          value={approvalReason}
+   461→                          onChange={(e) => setApprovalReason(e.target.value)}
+   462→                          rows={3}
+   463→                          className="border-amber-300 dark:border-amber-700"
+   464→                        />
+   465→                        <div className="flex items-center gap-3">
+   466→                          <Button
+   467→                            onClick={() => handleApproval(approvalDecision)}
+   468→                            disabled={!approvalReason.trim() || isApproving}
+   469→                            className={`h-11 ${
+   470→                              approvalDecision === 'auto_approve'
+   471→                                ? 'bg-emerald-600 hover:bg-emerald-700'
+   472→                                : 'bg-red-600 hover:bg-red-700'
+   473→                            }`}
+   474→                          >
+   475→                            {isApproving ? (
+   476→                              <><Loader2 className="size-4 mr-2 animate-spin" />Processing...</>
+   477→                            ) : approvalDecision === 'auto_approve' ? (
+   478→                              <><CheckCircle className="size-4 mr-2" />Confirm Approval</>
+   479→                            ) : (
+   480→                              <><Ban className="size-4 mr-2" />Confirm Rejection</>
+   481→                            )}
+   482→                          </Button>
+   483→                          <Button
+   484→                            variant="ghost"
+   485→                            onClick={() => { setApprovalDecision(''); setApprovalReason(''); }}
+   486→                            disabled={isApproving}
+   487→                            className="h-11"
+   488→                          >
+   489→                            Cancel
+   490→                          </Button>
+   491→                        </div>
+   492→                      </motion.div>
+   493→                    )}
+   494→                  </div>
+   495→                </CardContent>
+   496→              </Card>
+   497→            </motion.div>
+   498→          )}
+   499→
+   500→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+   501→            {/* Beneficiary Info */}
+   502→            <Card className="glass-card">
+   503→              <CardHeader className="pb-3">
+   504→                <CardTitle className="text-base flex items-center gap-2">
+   505→                  <User className="size-4 text-primary" /> Beneficiary Information
+   506→                </CardTitle>
+   507→              </CardHeader>
+   508→              <CardContent className="space-y-1">
+   509→                <InfoRow label="Name" value={app.beneficiary?.name} icon={User} />
+   510→                <InfoRow label="Aadhaar" value={maskAadhaar(app.beneficiary?.aadhaarNumber)} icon={CreditCard} />
+   511→                <InfoRow label="Phone" value={app.beneficiary?.phone} icon={Phone} />
+   512→                <InfoRow label="State" value={app.beneficiary?.state} icon={MapPin} />
+   513→                <InfoRow label="Category" value={app.beneficiary?.category} icon={Shield} />
+   514→                <InfoRow label="Occupation" value={app.beneficiary?.occupation} icon={Briefcase} />
+   515→              </CardContent>
+   516→            </Card>
+   517→
+   518→            {/* Application Info */}
+   519→            <Card className="glass-card">
+   520→              <CardHeader className="pb-3">
+   521→                <CardTitle className="text-base flex items-center gap-2">
+   522→                  <FileText className="size-4 text-primary" /> Application Details
+   523→                </CardTitle>
+   524→              </CardHeader>
+   525→              <CardContent className="space-y-1">
+   526→                <InfoRow label="Amount" value={formatCurrency(app.loanAmount)} icon={IndianRupee} />
+   527→                <InfoRow label="Tenure" value={`${app.loanTenure} months`} icon={Calendar} />
+   528→                <InfoRow label="Purpose" value={app.loanPurpose?.replace(/_/g, ' ')} icon={Briefcase} />
+   529→                <InfoRow label="Scheme" value={app.schemeType} icon={Landmark} />
+   530→                <InfoRow label="Interest Rate" value={app.interestRate ? `${app.interestRate}%` : null} icon={Activity} />
+   531→                <InfoRow label="EMI" value={app.emiAmount ? formatCurrency(app.emiAmount) : null} icon={IndianRupee} />
+   532→                <InfoRow label="Status" value={undefined} icon={Clock} />
+   533→                <div className="flex justify-end py-1"><StatusBadge status={app.status} /></div>
+   534→                <Separator className="my-1" />
+   535→                <InfoRow label="Submitted" value={formatDate(app.submittedAt)} icon={Calendar} />
+   536→                <InfoRow label="Decision" value={formatDate(app.decisionAt)} icon={Clock} />
+   537→                <InfoRow label="Disbursed" value={formatDate(app.disbursedAt)} icon={Calendar} />
+   538→              </CardContent>
+   539→            </Card>
+   540→          </div>
+   541→
+   542→          {/* Decision History Timeline */}
+   543→          <Card className="glass-card">
+   544→            <CardHeader className="pb-3">
+   545→              <CardTitle className="text-base">Decision History</CardTitle>
+   546→            </CardHeader>
+   547→            <CardContent>
+   548→              {app.decisions.length === 0 ? (
+   549→                <p className="text-sm text-muted-foreground">No decisions yet.</p>
+   550→              ) : (
+   551→                <div className="space-y-3 sm:space-y-4">
+   552→                  {app.decisions.map((d, i) => (
+   553→                    <div key={d.id} className="flex gap-3">
+   554→                      <div className="flex flex-col items-center">
+   555→                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+   556→                          d.decisionType === 'auto_approve' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+   557→                          d.decisionType === 'reject' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+   558→                          'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+   559→                        }`}>
+   560→                          {d.decisionType === 'auto_approve' ? <CheckCircle className="size-4" /> :
+   561→                           d.decisionType === 'reject' ? <XCircle className="size-4" /> :
+   562→                           <Clock className="size-4" />}
+   563→                        </div>
+   564→                        {i < app.decisions.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
+   565→                      </div>
+   566→                      <div className="flex-1 min-w-0 pb-4">
+   567→                        <p className="text-sm font-medium capitalize">{d.analyst ? d.decisionType?.replace(/_/g, ' ') : `AI Recommendation: ${d.decisionType?.replace(/_/g, ' ')}`}</p>
+   568→                        <p className="text-xs text-muted-foreground mt-0.5">{d.decisionReason || 'No reason provided'}</p>
+   569→                        {d.analyst && <p className="text-xs text-muted-foreground mt-1">By {d.analyst.name} • {formatDateTime(d.createdAt)}</p>}
+   570→                        {!d.analyst && <p className="text-xs text-muted-foreground mt-1">Automated • {formatDateTime(d.createdAt)}</p>}
+   571→                        {d.overrides.length > 0 && (
+   572→                          <div className="mt-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+   573→                            {d.overrides.map((o) => (
+   574→                              <p key={o.id} className="text-xs text-amber-700 dark:text-amber-400">
+   575→                                Grade override: <span className="font-mono font-bold">{o.originalGrade}</span> → <span className="font-mono font-bold">{o.newGrade}</span> by {o.analyst.name}
+   576→                                {o.reason && ` — "${o.reason}"`}
+   577→                              </p>
+   578→                            ))}
+   579→                          </div>
+   580→                        )}
+   581→                      </div>
+   582→                    </div>
+   583→                  ))}
+   584→                </div>
+   585→              )}
+   586→            </CardContent>
+   587→          </Card>
+   588→        </TabsContent>
+   589→
+   590→        {/* ──────── CREDIT SCORE TAB ──────── */}
+   591→        <TabsContent value="credit-score" className="space-y-3 sm:space-y-4">
+   592→          {!score ? (
+   593→            <Card className="p-6 sm:p-8 text-center">
+   594→              <Brain className="size-10 text-muted-foreground mx-auto mb-3" />
+   595→              <p className="text-muted-foreground">No credit score available yet.</p>
+   596→            </Card>
+   597→          ) : (
+   598→            <>
+   599→              {/* Score Ring */}
+   600→              <Card className="glass-card">
+   601→                <CardContent className="py-6 sm:py-8 flex flex-col items-center">
+   602→                  <ScoreRing score={score.totalScore} size={180} riskGrade={score.riskGrade} />
+   603→                  <p className="text-xs text-muted-foreground mt-2 text-center">Model: <span className="font-mono">{score.modelVersion}</span> • Scored: {formatDateTime(score.scoredAt)}</p>
+   604→                </CardContent>
+   605→              </Card>
+   606→
+   607→              {/* Ensemble Scores */}
+   608→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+   609→                {[
+   610→                  { label: 'XGBoost', value: score.xgboostScore, icon: Zap, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
+   611→                  { label: 'CatBoost', value: score.catboostScore, icon: Brain, color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20' },
+   612→                  { label: 'Deep Forest', value: score.deepForestScore, icon: Activity, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' },
+   613→                ].map((m) => (
+   614→                  <Card key={m.label} className="glass-card">
+   615→                    <CardContent className="p-4 flex items-center gap-3">
+   616→                      <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${m.color}`}>
+   617→                        <m.icon className="size-5" />
+   618→                      </div>
+   619→                      <div>
+   620→                        <p className="text-xs text-muted-foreground">{m.label}</p>
+   621→                        <p className="text-lg font-mono font-bold tabular-nums">{m.value?.toFixed(1) ?? '—'}</p>
+   622→                      </div>
+   623→                    </CardContent>
+   624→                  </Card>
+   625→                ))}
+   626→              </div>
+   627→
+   628→              {/* Confidence + Repayment + Consumption */}
+   629→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+   630→                <Card className="glass-card">
+   631→                  <CardContent className="p-4">
+   632→                    <p className="text-xs text-muted-foreground mb-2">Confidence Score</p>
+   633→                    <div className="flex items-center gap-3">
+   634→                      <Progress value={score.confidenceScore} className="flex-1 h-2" />
+   635→                      <span className="font-mono font-bold text-sm tabular-nums shrink-0">{score.confidenceScore.toFixed(0)}%</span>
+   636→                    </div>
+   637→                  </CardContent>
+   638→                </Card>
+   639→                <Card className="glass-card">
+   640→                  <CardContent className="p-4">
+   641→                    <p className="text-xs text-muted-foreground">Repayment Score</p>
+   642→                    <p className="text-lg font-mono font-bold tabular-nums mt-1">{score.repaymentScore?.toFixed(1) ?? '—'}</p>
+   643→                  </CardContent>
+   644→                </Card>
+   645→                <Card className="glass-card">
+   646→                  <CardContent className="p-4">
+   647→                    <p className="text-xs text-muted-foreground">Consumption Score</p>
+   648→                    <p className="text-lg font-mono font-bold tabular-nums mt-1">{score.consumptionScore?.toFixed(1) ?? '—'}</p>
+   649→                  </CardContent>
+   650→                </Card>
+   651→              </div>
+   652→
+   653→              {/* SHAP Waterfall */}
+   654→              <Card className="glass-card">
+   655→                <CardHeader className="pb-2">
+   656→                  <CardTitle className="text-base">Feature Contributions (SHAP)</CardTitle>
+   657→                  <CardDescription>How each feature influenced the credit score</CardDescription>
+   658→                </CardHeader>
+   659→                <CardContent>
+   660→                  <div className="overflow-x-auto -mx-1 px-1">
+   661→                    <div className="min-w-[400px]">
+   662→                      <ShapWaterfallChart
+   663→                        shapValues={score.shapValues || []}
+   664→                        baseValue={50}
+   665→                        finalScore={score.totalScore}
+   666→                      />
+   667→                    </div>
+   668→                  </div>
+   669→                </CardContent>
+   670→              </Card>
+   671→
+   672→              {/* Feature Weights Table */}
+   673→              <Card className="glass-card">
+   674→                <CardHeader className="pb-2">
+   675→                  <CardTitle className="text-base">Feature Weights</CardTitle>
+   676→                </CardHeader>
+   677→                <CardContent className="p-0">
+   678→                  <div className="max-h-64 overflow-x-auto overflow-y-auto scrollbar-thin">
+   679→                    <Table>
+   680→                      <TableHeader><TableRow><TableHead>Feature</TableHead><TableHead className="text-right">Weight</TableHead></TableRow></TableHeader>
+   681→                      <TableBody>
+   682→                        {Object.entries(score.featureWeights || {}).sort(([, a], [, b]) => Math.abs(b as number) - Math.abs(a as number)).map(([key, val]) => (
+   683→                          <TableRow key={key}>
+   684→                            <TableCell className="text-sm capitalize">{key.replace(/_/g, ' ')}</TableCell>
+   685→                            <TableCell className="font-mono text-sm text-right tabular-nums whitespace-nowrap">{(val as number).toFixed(4)}</TableCell>
+   686→                          </TableRow>
+   687→                        ))}
+   688→                      </TableBody>
+   689→                    </Table>
+   690→                  </div>
+   691→                </CardContent>
+   692→              </Card>
+   693→            </>
+   694→          )}
+   695→        </TabsContent>
+   696→
+   697→        {/* ──────── DOCUMENTS TAB ──────── */}
+   698→        <TabsContent value="documents" className="space-y-3 sm:space-y-4">
+   699→          <div className="flex items-center justify-between gap-3">
+   700→            <p className="text-sm text-muted-foreground">{app.documents.length} document(s)</p>
+   701→            <Button variant="outline" size="sm" className="h-11 shrink-0" onClick={() => toast.info('Upload feature coming soon')}>
+   702→              <Upload className="size-4 mr-1.5" /> Upload Document
+   703→            </Button>
+   704→          </div>
+   705→          {app.documents.length === 0 ? (
+   706→            <Card className="p-6 sm:p-8 text-center">
+   707→              <FileText className="size-10 text-muted-foreground mx-auto mb-3" />
+   708→              <p className="text-muted-foreground">No documents uploaded yet.</p>
+   709→            </Card>
+   710→          ) : (
+   711→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+   712→              {app.documents.map((doc) => (
+   713→                <Card key={doc.id} className="glass-card">
+   714→                  <CardContent className="p-4 space-y-3">
+   715→                    <div className="flex items-center justify-between gap-2">
+   716→                      <Badge variant="outline" className="text-xs">{formatDocType(doc.type)}</Badge>
+   717→                      <StatusBadge status={doc.status} />
+   718→                    </div>
+   719→                    <p className="text-sm font-medium truncate" title={doc.fileName}>{doc.fileName || 'Unnamed'}</p>
+   720→                    <div className="space-y-1 text-xs text-muted-foreground">
+   721→                      <div className="flex justify-between">
+   722→                        <span>OCR Confidence</span>
+   723→                        <span className="font-mono font-medium">{doc.ocrConfidence != null ? `${(doc.ocrConfidence * 100).toFixed(0)}%` : '—'}</span>
+   724→                      </div>
+   725→                      <div className="flex justify-between">
+   726→                        <span>Verified</span>
+   727→                        <span>{doc.verifiedAt ? formatDateTime(doc.verifiedAt) : 'No'}</span>
+   728→                      </div>
+   729→                    </div>
+   730→                    {doc.ocrData && (
+   731→                      <details className="text-xs">
+   732→                        <summary className="text-primary cursor-pointer hover:underline min-h-[44px] flex items-center">OCR Extracted Data</summary>
+   733→                        <pre className="mt-1 p-2 rounded bg-muted text-xs max-h-24 overflow-y-auto scrollbar-thin font-mono whitespace-pre-wrap">{doc.ocrData.slice(0, 500)}</pre>
+   734→                      </details>
+   735→                    )}
+   736→                  </CardContent>
+   737→                </Card>
+   738→              ))}
+   739→            </div>
+   740→          )}
+   741→        </TabsContent>
+   742→
+   743→        {/* ──────── REPAYMENTS TAB ──────── */}
+   744→        <TabsContent value="repayments" className="space-y-3 sm:space-y-4">
+   745→          <Card className="glass-card">
+   746→            <CardContent className="p-4 sm:p-6">
+   747→              <div className="flex items-center justify-between mb-3 gap-2">
+   748→                <p className="text-sm font-medium">Repayment Progress</p>
+   749→                <p className="text-sm font-mono tabular-nums shrink-0"><span className="font-bold text-primary">{repaymentPaid}</span> / {repaymentTotal} EMIs</p>
+   750→              </div>
+   751→              <Progress value={repaymentProgress} className="h-3" />
+   752→              <p className="text-xs text-muted-foreground mt-2 text-right">{repaymentProgress.toFixed(1)}% complete</p>
+   753→            </CardContent>
+   754→          </Card>
+   755→
+   756→          {app.repayments.length === 0 ? (
+   757→            <Card className="p-6 sm:p-8 text-center">
+   758→              <Calendar className="size-10 text-muted-foreground mx-auto mb-3" />
+   759→              <p className="text-muted-foreground">No repayment schedule generated yet.</p>
+   760→            </Card>
+   761→          ) : (
+   762→            <Card className="glass-card">
+   763→              <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin">
+   764→                <Table>
+   765→                  <TableHeader>
+   766→                    <TableRow className="sticky top-0 bg-card z-10">
+   767→                      <TableHead className="font-semibold">EMI #</TableHead>
+   768→                      <TableHead className="font-semibold">Due Date</TableHead>
+   769→                      <TableHead className="font-semibold text-right">Due Amount</TableHead>
+   770→                      <TableHead className="font-semibold text-right">Paid</TableHead>
+   771→                      <TableHead className="font-semibold">Status</TableHead>
+   772→                      <TableHead className="font-semibold text-right">Days Overdue</TableHead>
+   773→                    </TableRow>
+   774→                  </TableHeader>
+   775→                  <TableBody>
+   776→                    {app.repayments.map((r) => (
+   777→                      <TableRow key={r.id}>
+   778→                        <TableCell className="font-mono text-sm whitespace-nowrap">#{r.emiNumber}</TableCell>
+   779→                        <TableCell className="text-sm whitespace-nowrap">{formatDate(r.dueDate)}</TableCell>
+   780→                        <TableCell className="font-mono text-sm text-right whitespace-nowrap">{formatCurrency(r.dueAmount)}</TableCell>
+   781→                        <TableCell className={`font-mono text-sm text-right whitespace-nowrap ${r.paidAmount ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+   782→                          {r.paidAmount ? formatCurrency(r.paidAmount) : '—'}
+   783→                        </TableCell>
+   784→                        <TableCell><StatusBadge status={r.status} /></TableCell>
+   785→                        <TableCell className={`font-mono text-sm text-right whitespace-nowrap ${r.daysOverdue > 0 ? 'text-red-600 dark:text-red-400 font-bold' : ''}`}>{r.daysOverdue}</TableCell>
+   786→                      </TableRow>
+   787→                    ))}
+   788→                  </TableBody>
+   789→                </Table>
+   790→              </div>
+   791→            </Card>
+   792→          )}
+   793→        </TabsContent>
+   794→
+   795→        {/* ──────── DECISION TAB ──────── */}
+   796→        <TabsContent value="decision" className="space-y-3 sm:space-y-4">
+   797→          {/* Current Decision */}
+   798→          <Card className="glass-card">
+   799→            <CardHeader className="pb-3">
+   800→              <CardTitle className="text-base">Current Decision</CardTitle>
+   801→            </CardHeader>
+   802→            <CardContent>
+   803→              {decision ? (
+   804→                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+   805→                  <div className={`size-12 rounded-xl flex items-center justify-center shrink-0 ${
+   806→                    decision.decisionType === 'auto_approve' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+   807→                    decision.decisionType === 'reject' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+   808→                    'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+   809→                  }`}>
+   810→                    {decision.decisionType === 'auto_approve' ? <CheckCircle className="size-6" /> :
+   811→                     decision.decisionType === 'reject' ? <XCircle className="size-6" /> :
+   812→                     <AlertTriangle className="size-6" />}
+   813→                  </div>
+   814→                  <div className="min-w-0">
+   815→                    <p className="text-lg font-semibold capitalize">{decision.decisionType?.replace(/_/g, ' ')}</p>
+   816→                    <p className="text-sm text-muted-foreground">{decision.decisionReason || 'No reason provided'}</p>
+   817→                    {decision.analyst && <p className="text-xs text-muted-foreground mt-1">By {decision.analyst.name} • {formatDateTime(decision.createdAt)}</p>}
+   818→                  </div>
+   819→                </div>
+   820→              ) : (
+   821→                <p className="text-sm text-muted-foreground">No decision has been made yet.</p>
+   822→              )}
+   823→            </CardContent>
+   824→          </Card>
+   825→
+   826→          {/* Analyst Override Form */}
+   827→          {isAnalyst && !canApprove && (
+   828→            <Card className="glass-card">
+   829→              <CardHeader className="pb-3">
+   830→                <CardTitle className="text-base flex items-center gap-2">
+   831→                  <Shield className="size-4 text-amber-500" /> Analyst Override
+   832→                </CardTitle>
+   833→                <CardDescription>Override the risk grade for this application (requires justification)</CardDescription>
+   834→              </CardHeader>
+   835→              <CardContent className="space-y-3 sm:space-y-4">
+   836→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+   837→                  <div className="space-y-2">
+   838→                    <Label>New Grade</Label>
+   839→                    <Select value={overrideGrade} onValueChange={setOverrideGrade}>
+   840→                      <SelectTrigger className="h-11"><SelectValue placeholder="Select new grade" /></SelectTrigger>
+   841→                      <SelectContent>
+   842→                        {['A+', 'A', 'B+', 'B', 'C+', 'C', 'D'].map((g) => (
+   843→                          <SelectItem key={g} value={g}><span className="font-mono font-bold">{g}</span></SelectItem>
+   844→                        ))}
+   845→                      </SelectContent>
+   846→                    </Select>
+   847→                  </div>
+   848→                  <div className="space-y-2">
+   849→                    <Label>Current Grade</Label>
+   850→                    <div className="h-11 flex items-center px-3 rounded-md border bg-muted/50">
+   851→                      {score ? <GradeBadge grade={score.riskGrade} size="md" /> : <span className="text-sm text-muted-foreground">Not scored</span>}
+   852→                    </div>
+   853→                  </div>
+   854→                </div>
+   855→                <div className="space-y-2">
+   856→                  <Label>Reason for Override</Label>
+   857→                  <Textarea
+   858→                    placeholder="Provide a detailed justification for this grade override..."
+   859→                    value={overrideReason}
+   860→                    onChange={(e) => setOverrideReason(e.target.value)}
+   861→                    rows={3}
+   862→                  />
+   863→                </div>
+   864→                <Button
+   865→                  onClick={() => overrideMutation.mutate()}
+   866→                  disabled={!overrideGrade || !overrideReason || overrideMutation.isPending}
+   867→                  className="w-full sm:w-auto h-11"
+   868→                >
+   869→                  {overrideMutation.isPending ? 'Submitting...' : 'Submit Override'}
+   870→                </Button>
+   871→              </CardContent>
+   872→            </Card>
+   873→          )}
+   874→
+   875→          {/* Decision History List */}
+   876→          <Card className="glass-card">
+   877→            <CardHeader className="pb-3">
+   878→              <CardTitle className="text-base">All Decisions</CardTitle>
+   879→            </CardHeader>
+   880→            <CardContent>
+   881→              {app.decisions.length === 0 ? (
+   882→                <p className="text-sm text-muted-foreground">No decisions recorded.</p>
+   883→              ) : (
+   884→                <div className="max-h-64 overflow-y-auto scrollbar-thin space-y-3">
+   885→                  {app.decisions.map((d) => (
+   886→                    <div key={d.id} className="p-3 rounded-lg border border-border/50 space-y-1">
+   887→                      <div className="flex items-center justify-between gap-2">
+   888→                        <span className="text-sm font-medium capitalize">{d.decisionType?.replace(/_/g, ' ')}</span>
+   889→                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDateTime(d.createdAt)}</span>
+   890→                      </div>
+   891→                      {d.decisionReason && <p className="text-xs text-muted-foreground">{d.decisionReason}</p>}
+   892→                      {d.analyst && <p className="text-xs text-muted-foreground">Analyst: {d.analyst.name}</p>}
+   893→                    </div>
+   894→                  ))}
+   895→                </div>
+   896→              )}
+   897→            </CardContent>
+   898→          </Card>
+   899→        </TabsContent>
+   900→      </Tabs>
+   901→    </motion.div>
+   902→  );
+   903→}
+   904→

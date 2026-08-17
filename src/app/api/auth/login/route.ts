@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       },
     });
     return NextResponse.json({
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar, phone: user.phone, isActive: user.isActive },
       token, refreshToken,
     });
   } catch (error) {

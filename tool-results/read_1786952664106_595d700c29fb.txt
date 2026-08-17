@@ -338,7 +338,7 @@
    338→        className="relative flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen before:bg-gradient-to-b before:from-teal/5 before:to-transparent before:absolute before:inset-0 before:z-0"
    339→        style={{
    340→          background:
-   341→            'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%), radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)',
+   341→            'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%), radial-gradient(circle at 1px 1px, rgba(15,118,110,0.06) 1px, transparent 0)',
    342→          backgroundSize: '100% 100%, 24px 24px',
    343→        }}
    344→        variants={pageVariants}

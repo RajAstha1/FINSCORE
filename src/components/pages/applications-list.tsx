@@ -47,7 +47,7 @@ import { useAuthStore } from '@/store/use-auth-store';
 
 interface BeneficiaryPreview {
   id: string;
-  name: string;
+  aadhaarName: string;
   aadhaarNumber: string;
   state: string;
   category: string;
@@ -202,7 +202,7 @@ export default function ApplicationsListPage() {
     const headers = ['Application #', 'Beneficiary', 'Amount', 'Purpose', 'Status', 'Grade', 'Score', 'Created'];
     const rows = applications.map((a) => [
       a.applicationNumber,
-      a.beneficiary?.name || '',
+      a.beneficiary?.aadhaarName || '',
       a.loanAmount,
       a.loanPurpose,
       a.status,
@@ -376,7 +376,7 @@ export default function ApplicationsListPage() {
                       <TableCell className="font-mono text-sm font-medium whitespace-nowrap">{app.applicationNumber}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium text-sm">{app.beneficiary?.name || '—'}</span>
+                          <span className="font-medium text-sm">{app.beneficiary?.aadhaarName || '—'}</span>
                           <span className="text-xs text-muted-foreground font-mono">{maskAadhaar(app.beneficiary?.aadhaarNumber)}</span>
                         </div>
                       </TableCell>

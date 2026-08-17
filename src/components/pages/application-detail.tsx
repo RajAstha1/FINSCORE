@@ -104,7 +104,7 @@ interface RepaymentEntry {
 
 interface BeneficiaryData {
   id: string;
-  name: string;
+  aadhaarName: string;
   aadhaarNumber: string;
   phone: string;
   email: string;
@@ -398,7 +398,7 @@ export default function ApplicationDetailPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
                       <p className="text-xs text-muted-foreground">Applicant</p>
-                      <p className="text-sm font-medium mt-0.5 truncate">{app.beneficiary?.name || '—'}</p>
+                      <p className="text-sm font-medium mt-0.5 truncate">{app.beneficiary?.aadhaarName || '—'}</p>
                     </div>
                     <div className="rounded-lg bg-white/60 dark:bg-black/20 p-3 border">
                       <p className="text-xs text-muted-foreground">Loan Amount</p>
@@ -506,7 +506,7 @@ export default function ApplicationDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <InfoRow label="Name" value={app.beneficiary?.name} icon={User} />
+                <InfoRow label="Name" value={app.beneficiary?.aadhaarName} icon={User} />
                 <InfoRow label="Aadhaar" value={maskAadhaar(app.beneficiary?.aadhaarNumber)} icon={CreditCard} />
                 <InfoRow label="Phone" value={app.beneficiary?.phone} icon={Phone} />
                 <InfoRow label="State" value={app.beneficiary?.state} icon={MapPin} />

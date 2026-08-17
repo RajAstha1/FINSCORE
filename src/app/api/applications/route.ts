@@ -64,6 +64,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // Coerce numeric fields (HTML inputs always submit as strings)
+    const monthlyIncome = body.monthlyIncome ? Number(body.monthlyIncome) : null;
+    const loanAmount = body.loanAmount ? Number(body.loanAmount) : 0;
+    const loanTenure = body.loanTenure ? Number(body.loanTenure) : 24;
+    const electricityConsistency = Number(body.electricityConsistency) || 50;
+    const mobileRechargeConsistency = Number(body.mobileRechargeConsistency) || 50;
+    const utilityPaymentHistory = Number(body.utilityPaymentHistory) || 50;
+    const repaymentHistory = Number(body.repaymentHistory) || 50;
+    
     // Generate application number
     const count = await db.loanApplication.count();
     const appNumber = `AFS-${String(count + 1).padStart(6, '0')}`;
@@ -89,7 +98,7 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           email: body.email,
           occupation: body.occupation,
-          monthlyIncome: body.monthlyIncome,
+          monthlyIncome: monthlyIncome,
           educationLevel: body.educationLevel,
           bankAccount: body.bankAccount,
           bankName: body.bankName,
@@ -105,11 +114,11 @@ export async function POST(request: NextRequest) {
       data: {
         applicationNumber: appNumber,
         beneficiaryId: beneficiary.id,
-        loanAmount: body.loanAmount,
+        loanAmount: loanAmount,
         loanPurpose: body.loanPurpose,
-        loanTenure: body.loanTenure,
+        loanTenure: loanTenure,
         interestRate: 8.5,
-        emiAmount: body.loanAmount ? Math.round((body.loanAmount * 1.085) / (body.loanTenure || 24)) : 0,
+        emiAmount: loanAmount ? Math.round((loanAmount * 1.085) / (loanTenure || 24)) : 0,
         status: 'submitted',
         submittedAt: new Date(),
         schemeType: body.schemeType || 'NBCFDC',
@@ -119,16 +128,16 @@ export async function POST(request: NextRequest) {
     // Auto-score the application
     const features = generateFeaturesFromData({
       age: beneficiary.dateOfBirth ? Math.floor((Date.now() - beneficiary.dateOfBirth.getTime()) / 31557600000) : 35,
-      monthlyIncome: body.monthlyIncome,
-      loanAmount: body.loanAmount,
-      loanTenure: body.loanTenure,
+      monthlyIncome: monthlyIncome,
+      loanAmount: loanAmount,
+      loanTenure: loanTenure,
       state: beneficiary.state || undefined,
       category: beneficiary.category || undefined,
       educationLevel: beneficiary.educationLevel || undefined,
-      electricityConsistency: body.electricityConsistency,
-      mobileRechargeConsistency: body.mobileRechargeConsistency,
-      utilityPaymentHistory: body.utilityPaymentHistory,
-      repaymentHistory: body.repaymentHistory,
+      electricityConsistency: electricityConsistency,
+      mobileRechargeConsistency: mobileRechargeConsistency,
+      utilityPaymentHistory: utilityPaymentHistory,
+      repaymentHistory: repaymentHistory,
     });
 
     const scoreResult = scoreApplication(features);

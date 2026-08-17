@@ -53,6 +53,7 @@ interface DashboardSummary {
 }
 
 interface RecentApplication {
+  id: string;
   applicationNumber: string;
   beneficiary: { aadhaarName: string; state: string };
   loanAmount: number;
@@ -797,7 +798,7 @@ export function ExecutiveDashboard() {
                           className={`hover:bg-primary/5 transition-colors duration-150 cursor-pointer ${idx % 2 !== 0 ? 'bg-muted/50' : ''}`}
                           onClick={() =>
                             navigate('application-detail', {
-                              id: app.applicationNumber,
+                              id: app.id,
                             })
                           }
                         >
@@ -840,7 +841,7 @@ export function ExecutiveDashboard() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate('application-detail', {
-                                  id: app.applicationNumber,
+                                  id: app.id,
                                 });
                               }}
                             >

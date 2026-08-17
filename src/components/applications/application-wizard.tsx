@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useForm, useFormContext, FormProvider, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@/lib/zod-resolver';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -142,15 +142,9 @@ const consumptionSchema = z.object({
 });
 
 const consentSchema = z.object({
-  consentCreditBureau: z.literal(true, {
-    errorMap: () => ({ message: 'You must consent to credit bureau check' }),
-  }),
-  consentDataSharing: z.literal(true, {
-    errorMap: () => ({ message: 'You must authorize data sharing with NBCFDC' }),
-  }),
-  consentAccuracy: z.literal(true, {
-    errorMap: () => ({ message: 'You must declare information accuracy' }),
-  }),
+  consentCreditBureau: z.literal(true, { message: 'You must consent to credit bureau check' }),
+  consentDataSharing: z.literal(true, { message: 'You must authorize data sharing with NBCFDC' }),
+  consentAccuracy: z.literal(true, { message: 'You must declare information accuracy' }),
 });
 
 const fullSchema = personalSchema
