@@ -939,6 +939,19 @@ export function ApplicationWizard() {
     }),
   };
 
+  // Show success overlay when application is submitted
+  if (successResult) {
+    return (
+      <div className="mx-auto w-full max-w-4xl">
+        <SuccessOverlay
+          score={successResult.score}
+          appNumber={successResult.appNumber}
+          onClose={() => navigate('applications')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
       {/* Header */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Shield,
@@ -13,7 +13,6 @@ import {
   ScrollText,
   Settings,
   BarChart3,
-  ChevronDown,
   ChevronRight,
   LogOut,
   Menu,
@@ -55,6 +54,7 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   roles: UserRole[];
+  badge?: (roles: UserRole[]) => boolean;
 }
 
 interface AdminSubItem {
@@ -71,22 +71,28 @@ const NAV_ITEMS: NavItem[] = [
     roles: ['super_admin', 'analyst', 'partner', 'beneficiary', 'auditor'],
   },
   {
-    page: 'applications',
-    label: 'Applications',
-    icon: FileText,
-    roles: ['super_admin', 'analyst', 'partner'],
-  },
-  {
     page: 'application-new',
     label: 'New Application',
     icon: FilePlus,
-    roles: ['analyst', 'partner'],
+    roles: ['beneficiary', 'analyst', 'partner'],
+  },
+  {
+    page: 'applications',
+    label: 'Applications',
+    icon: FileText,
+    roles: ['super_admin', 'analyst', 'partner', 'beneficiary'],
   },
   {
     page: 'beneficiaries',
     label: 'Beneficiaries',
     icon: Users,
     roles: ['super_admin', 'analyst'],
+  },
+  {
+    page: 'partner-portal',
+    label: 'Partner Portal',
+    icon: Handshake,
+    roles: ['partner', 'super_admin'],
   },
   {
     page: 'model-monitoring',
@@ -112,19 +118,22 @@ const NAV_ITEMS: NavItem[] = [
     icon: BarChart3,
     roles: ['super_admin', 'analyst'],
   },
-  {
-    page: 'partner-portal',
-    label: 'Partner Portal',
-    icon: Handshake,
-    roles: ['partner', 'super_admin'],
-  },
 ];
 
 const ADMIN_SUB_ITEMS: AdminSubItem[] = [
   { page: 'admin-users', label: 'Users', icon: Users },
   { page: 'admin-settings', label: 'Settings', icon: Settings },
-  { page: 'partner-portal', label: 'Partner Portal', icon: Handshake },
 ];
+
+// ── Section labels for different portals ───────────────────────────
+
+const SECTION_LABELS: Record<UserRole, { main: string; admin?: string }> = {
+  beneficiary: { main: 'My Portal' },
+  analyst: { main: 'Operations' },
+  partner: { main: 'Channel Partner' },
+  super_admin: { main: 'Navigation', admin: 'Administration' },
+  auditor: { main: 'Audit & Compliance' },
+};
 
 // ── Helper ──────────────────────────────────────────────────────────
 
@@ -201,20 +210,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }) {
   const { currentPage, navigate } = useAppStore();
   const { user, logout, hasRole, token } = useAuthStore();
-  const [adminOpen, setAdminOpen] = useState(false);
-
-  // Check if any admin sub-item is active
+  // Admin collapsible: open when a sub-item is active or manually toggled
+  const [adminManualOpen, setAdminManualOpen] = useState(false);
   const isAdminSubActive = ADMIN_SUB_ITEMS.some(
     (item) => item.page === currentPage
   );
-
-  // Auto-open admin collapsible if a sub-item is active
-  const handleAdminToggle = () => setAdminOpen((prev) => !prev);
-
-  // Check if current page is in admin sub-items to auto-expand
-  useState(() => {
-    if (isAdminSubActive) setAdminOpen(true);
-  });
+  const adminOpen = isAdminSubActive || adminManualOpen;
+  const handleAdminToggle = () => setAdminManualOpen((prev) => !prev);
 
   // Fetch pending applications count for sidebar badge
   const { data: pendingData } = useQuery({
@@ -227,12 +229,13 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
       return res.json();
     },
     enabled: !!token && hasRole('super_admin', 'analyst'),
-    refetchInterval: 30000, // Refresh every 30s
+    refetchInterval: 30000,
   });
   const pendingCount = pendingData?.pagination?.total ?? 0;
 
   const visibleNavItems = NAV_ITEMS.filter((item) => hasRole(...item.roles));
   const showAdminSection = hasRole('super_admin');
+  const roleSectionLabels = user ? SECTION_LABELS[user.role] : { main: 'Navigation' };
 
   return (
     <div className="flex h-full flex-col">
@@ -256,7 +259,7 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-2">
         <nav className="flex flex-col gap-0.5" aria-label="Main navigation">
-          <SectionLabel>Navigation</SectionLabel>
+          <SectionLabel>{roleSectionLabels.main}</SectionLabel>
 
           {visibleNavItems.map((item) => (
             <NavItemButton
@@ -270,12 +273,12 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
           ))}
 
           {/* Admin Collapsible Section */}
-          {showAdminSection && (
+          {showAdminSection && roleSectionLabels.admin && (
             <>
-              <SectionLabel>Administration</SectionLabel>
+              <SectionLabel>{roleSectionLabels.admin}</SectionLabel>
               <Collapsible
-                open={adminOpen || isAdminSubActive}
-                onOpenChange={setAdminOpen}
+                open={adminOpen}
+                onOpenChange={handleAdminToggle}
                 className="group"
               >
                 <CollapsibleTrigger asChild>
@@ -284,15 +287,11 @@ export function AppSidebarContent({ isDesktop = false }: { isDesktop?: boolean }
                       <Settings className="size-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                       <span>Admin</span>
                     </span>
-                    <span className="transition-transform duration-300 ease-out [
-                      [data-state=open]>&]:rotate-90
-                    ">
-                      <ChevronRight
-                        className={`size-4 transition-transform duration-300 ${
-                          adminOpen || isAdminSubActive ? 'rotate-90' : ''
-                        }`}
-                      />
-                    </span>
+                    <ChevronRight
+                      className={`size-4 transition-transform duration-300 ${
+                        adminOpen ? 'rotate-90' : ''
+                      }`}
+                    />
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent

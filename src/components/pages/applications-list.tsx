@@ -157,11 +157,15 @@ function TableSkeleton() {
 
 export default function ApplicationsListPage() {
   const token = useAuthStore((s) => s.token)!;
+  const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
   const navigate = useAppStore((s) => s.navigate);
 
+  // Beneficiaries see all statuses; officers default to submitted
+  const isBeneficiary = hasRole('beneficiary');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [status, setStatus] = useState('submitted');
+  const [status, setStatus] = useState(isBeneficiary ? '' : 'submitted');
   const [grade, setGrade] = useState('');
   const [scheme, setScheme] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -229,17 +233,22 @@ export default function ApplicationsListPage() {
       transition={{ duration: 0.4 }}
     >
       <PageHeader
-        title="Loan Applications"
+        title={isBeneficiary ? 'My Applications' : 'Loan Applications'}
+        description={isBeneficiary ? 'Track the status of your loan applications' : undefined}
         actions={
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" className="flex-1 sm:flex-none h-11" onClick={handleExport}>
-              <Download className="size-4 mr-1.5" />
-              Export CSV
-            </Button>
-            <Button size="sm" className="flex-1 sm:flex-none h-11" onClick={() => navigate('application-new')}>
-              <Plus className="size-4 mr-1.5" />
-              New Application
-            </Button>
+            {!isBeneficiary && (
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none h-11" onClick={handleExport}>
+                <Download className="size-4 mr-1.5" />
+                Export CSV
+              </Button>
+            )}
+            {hasRole('beneficiary', 'analyst', 'partner') && (
+              <Button size="sm" className="flex-1 sm:flex-none h-11" onClick={() => navigate('application-new')}>
+                <Plus className="size-4 mr-1.5" />
+                {isBeneficiary ? 'Apply Now' : 'New Application'}
+              </Button>
+            )}
           </div>
         }
       />

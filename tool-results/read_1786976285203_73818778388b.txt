@@ -2,7 +2,7 @@
      2→
      3→import { useState } from 'react';
      4→import { useForm } from 'react-hook-form';
-     5→import { zodResolver } from '@hookform/resolvers/zod';
+     5→import { zodResolver } from '@/lib/zod-resolver';
      6→import { z } from 'zod';
      7→import { motion, AnimatePresence } from 'framer-motion';
      8→import { toast } from 'sonner';
