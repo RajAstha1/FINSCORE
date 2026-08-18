@@ -207,10 +207,10 @@ export default function LoginPage() {
   // ── Render: Portal Selection ──────────────────────────────────────
   if (view === 'portal-select') {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:flex-row">
         {/* Left Panel - Brand (desktop) */}
         <div
-          className="hidden lg:flex lg:w-[48%] relative overflow-hidden"
+          className="hidden lg:flex lg:w-[48%] lg:h-screen relative overflow-hidden"
           style={{ background: 'linear-gradient(165deg, #0F766E 0%, #115E59 40%, #0C4A42 70%, #062D28 100%)' }}
         >
           {/* Decorative elements */}
@@ -282,7 +282,7 @@ export default function LoginPage() {
 
         {/* Right Panel - Portal Selection */}
         <motion.div
-          className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen relative"
+          className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen lg:min-h-0 relative"
           style={{ background: 'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%)' }}
           variants={staggerContainer}
           initial="hidden"
@@ -360,10 +360,10 @@ export default function LoginPage() {
 
   // ── Render: Auth Form (Sign In / Sign Up) ──────────────────────────
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Panel - Brand (desktop) */}
       <div
-        className="hidden lg:flex lg:w-[48%] relative overflow-hidden"
+        className="hidden lg:flex lg:w-[48%] lg:h-screen relative overflow-hidden"
         style={{ background: selectedPortal?.gradient || 'linear-gradient(165deg, #0F766E 0%, #062D28 100%)' }}
       >
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
@@ -410,7 +410,7 @@ export default function LoginPage() {
 
       {/* Right Panel - Auth Form */}
       <motion.div
-        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen"
+        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen lg:min-h-0"
         style={{ background: 'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

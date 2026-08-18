@@ -1,0 +1,667 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState } from 'react';
+     4→     4→import { useForm } from 'react-hook-form';
+     5→     5→import { zodResolver } from '@/lib/zod-resolver';
+     6→     6→import { z } from 'zod';
+     7→     7→import { motion, AnimatePresence } from 'framer-motion';
+     8→     8→import { toast } from 'sonner';
+     9→     9→import {
+    10→    10→  Shield,
+    11→    11→  Lock,
+    12→    12→  User,
+    13→    13→  Eye,
+    14→    14→  EyeOff,
+    15→    15→  ArrowRight,
+    16→    16→  ArrowLeft,
+    17→    17→  Users,
+    18→    18→  FileCheck,
+    19→    19→  BarChart3,
+    20→    20→  Loader2,
+    21→    21→  Zap,
+    22→    22→  CheckCircle2,
+    23→    23→  UserPlus,
+    24→    24→  LogIn,
+    25→    25→  ChevronRight,
+    26→    26→  Sparkles,
+    27→    27→} from 'lucide-react';
+    28→    28→
+    29→    29→import { Button } from '@/components/ui/button';
+    30→    30→import { Input } from '@/components/ui/input';
+    31→    31→import { Label } from '@/components/ui/label';
+    32→    32→import { Card, CardContent, CardHeader } from '@/components/ui/card';
+    33→    33→import { useAuthStore } from '@/store/use-auth-store';
+    34→    34→import { useAppStore } from '@/store/use-app-store';
+    35→    35→import type { UserRole } from '@/lib/auth';
+    36→    36→
+    37→    37→// ── Types ────────────────────────────────────────────────────────────────────
+    38→    38→
+    39→    39→type View = 'portal-select' | 'auth';
+    40→    40→type AuthMode = 'signin' | 'signup';
+    41→    41→
+    42→    42→interface PortalConfig {
+    43→    43→  id: 'beneficiary' | 'analyst' | 'super_admin';
+    44→    44→  title: string;
+    45→    45→  subtitle: string;
+    46→    46→  description: string;
+    47→    47→  icon: React.ElementType;
+    48→    48→  gradient: string;
+    49→    49→  features: string[];
+    50→    50→}
+    51→    51→
+    52→    52→// ── Portal Configs ──────────────────────────────────────────────────────────
+    53→    53→
+    54→    54→const PORTALS: PortalConfig[] = [
+    55→    55→  {
+    56→    56→    id: 'beneficiary',
+    57→    57→    title: 'Applicant Portal',
+    58→    58→    subtitle: 'Apply for Loans',
+    59→    59→    description: 'For individuals seeking financial assistance through NBCFDC schemes',
+    60→    60→    icon: Users,
+    61→    61→    gradient: 'linear-gradient(135deg, #0F766E 0%, #14B8A6 100%)',
+    62→    62→    features: ['Submit loan applications', 'Track application status', 'View credit scores'],
+    63→    63→  },
+    64→    64→  {
+    65→    65→    id: 'analyst',
+    66→    66→    title: 'Officer Portal',
+    67→    67→    subtitle: 'Review & Approve',
+    68→    68→    description: 'For credit officers who review, score, and approve loan applications',
+    69→    69→    icon: FileCheck,
+    70→    70→    gradient: 'linear-gradient(135deg, #B45309 0%, #F59E0B 100%)',
+    71→    71→    features: ['Review applications', 'Approve or reject loans', 'Manage beneficiaries'],
+    72→    72→  },
+    73→    73→  {
+    74→    74→    id: 'super_admin',
+    75→    75→    title: 'Super Admin Portal',
+    76→    76→    subtitle: 'Monitor & Control',
+    77→    77→    description: 'Full platform oversight with analytics, user management, and audit controls',
+    78→    78→    icon: BarChart3,
+    79→    79→    gradient: 'linear-gradient(135deg, #1E293B 0%, #475569 100%)',
+    80→    80→    features: ['Monitor all operations', 'Manage users & roles', 'View analytics & reports'],
+    81→    81→  },
+    82→    82→];
+    83→    83→
+    84→    84→// ── Zod Schemas ──────────────────────────────────────────────────────────────
+    85→    85→
+    86→    86→const signinSchema = z.object({
+    87→    87→  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+    88→    88→  password: z.string().min(1, 'Password is required').min(6, 'Password must be at least 6 characters'),
+    89→    89→});
+    90→    90→
+    91→    91→const signupSchema = z.object({
+    92→    92→  name: z.string().min(2, 'Name must be at least 2 characters'),
+    93→    93→  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+    94→    94→  password: z.string().min(6, 'Password must be at least 6 characters'),
+    95→    95→  confirmPassword: z.string().min(6, 'Please confirm your password'),
+    96→    96→}).refine((data) => data.password === data.confirmPassword, {
+    97→    97→  message: 'Passwords do not match',
+    98→    98→  path: ['confirmPassword'],
+    99→    99→});
+   100→   100→
+   101→   101→type SigninData = z.infer<typeof signinSchema>;
+   102→   102→type SignupData = z.infer<typeof signupSchema>;
+   103→   103→
+   104→   104→// ── Animation Variants ──────────────────────────────────────────────────────
+   105→   105→
+   106→   106→const fadeInUp = {
+   107→   107→  hidden: { opacity: 0, y: 20 },
+   108→   108→  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+   109→   109→  exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+   110→   110→};
+   111→   111→
+   112→   112→const staggerContainer = {
+   113→   113→  hidden: { opacity: 0 },
+   114→   114→  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
+   115→   115→  exit: { opacity: 0, transition: { duration: 0.15 } },
+   116→   116→};
+   117→   117→
+   118→   118→const scaleIn = {
+   119→   119→  hidden: { opacity: 0, scale: 0.95 },
+   120→   120→  visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } },
+   121→   121→  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
+   122→   122→};
+   123→   123→
+   124→   124→// ── Component ───────────────────────────────────────────────────────────────
+   125→   125→
+   126→   126→export default function LoginPage() {
+   127→   127→  const [view, setView] = useState<View>('portal-select');
+   128→   128→  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+   129→   129→  const [selectedPortal, setSelectedPortal] = useState<PortalConfig | null>(null);
+   130→   130→  const [showPassword, setShowPassword] = useState(false);
+   131→   131→  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+   132→   132→  const [isSubmitting, setIsSubmitting] = useState(false);
+   133→   133→
+   134→   134→  const authLogin = useAuthStore((s) => s.login);
+   135→   135→  const navigate = useAppStore((s) => s.navigate);
+   136→   136→
+   137→   137→  // ── Portal selection handler ──────────────────────────────────────
+   138→   138→  const handleSelectPortal = (portal: PortalConfig) => {
+   139→   139→    setSelectedPortal(portal);
+   140→   140→    setView('auth');
+   141→   141→    setAuthMode('signin');
+   142→   142→  };
+   143→   143→
+   144→   144→  // ── Back to portal selection ──────────────────────────────────────
+   145→   145→  const handleBack = () => {
+   146→   146→    setView('portal-select');
+   147→   147→    setSelectedPortal(null);
+   148→   148→  };
+   149→   149→
+   150→   150→  // ── Sign In Handler ───────────────────────────────────────────────
+   151→   151→  const signinForm = useForm<SigninData>({ resolver: zodResolver(signinSchema), defaultValues: { email: '', password: '' } });
+   152→   152→
+   153→   153→  const onSignin = async (data: SigninData) => {
+   154→   154→    setIsSubmitting(true);
+   155→   155→    try {
+   156→   156→      const res = await fetch('/api/auth/login', {
+   157→   157→        method: 'POST',
+   158→   158→        headers: { 'Content-Type': 'application/json' },
+   159→   159→        body: JSON.stringify(data),
+   160→   160→      });
+   161→   161→      const body = await res.json();
+   162→   162→      if (!res.ok) {
+   163→   163→        toast.error(body.error || 'Login failed. Please try again.');
+   164→   164→        return;
+   165→   165→      }
+   166→   166→      // Verify the role matches the selected portal (warn but allow for flexibility)
+   167→   167→      if (selectedPortal && body.user.role !== selectedPortal.id) {
+   168→   168→        toast.info(`Note: This account is registered as ${body.user.role.replace('_', ' ')}. Redirecting to your portal.`, { duration: 4000 });
+   169→   169→      }
+   170→   170→      authLogin({ id: body.user.id, email: body.user.email, name: body.user.name, role: body.user.role as UserRole, avatar: body.user.avatar ?? null, phone: null, isActive: true }, body.token);
+   171→   171→      navigate('dashboard');
+   172→   172→      toast.success(`Welcome back, ${body.user.name}!`);
+   173→   173→    } catch {
+   174→   174→      toast.error('Network error. Please check your connection and try again.');
+   175→   175→    } finally {
+   176→   176→      setIsSubmitting(false);
+   177→   177→    }
+   178→   178→  };
+   179→   179→
+   180→   180→  // ── Sign Up Handler ───────────────────────────────────────────────
+   181→   181→  const signupForm = useForm<SignupData>({ resolver: zodResolver(signupSchema), defaultValues: { name: '', email: '', password: '', confirmPassword: '' } });
+   182→   182→
+   183→   183→  const onSignup = async (data: SignupData) => {
+   184→   184→    if (!selectedPortal) return;
+   185→   185→    setIsSubmitting(true);
+   186→   186→    try {
+   187→   187→      const res = await fetch('/api/auth/register', {
+   188→   188→        method: 'POST',
+   189→   189→        headers: { 'Content-Type': 'application/json' },
+   190→   190→        body: JSON.stringify({ name: data.name, email: data.email, password: data.password, role: selectedPortal.id }),
+   191→   191→      });
+   192→   192→      const body = await res.json();
+   193→   193→      if (!res.ok) {
+   194→   194→        toast.error(body.error || 'Registration failed. Please try again.');
+   195→   195→        return;
+   196→   196→      }
+   197→   197→      authLogin({ id: body.user.id, email: body.user.email, name: body.user.name, role: body.user.role as UserRole, avatar: body.user.avatar ?? null, phone: null, isActive: true }, body.token);
+   198→   198→      navigate('dashboard');
+   199→   199→      toast.success(`Account created! Welcome, ${body.user.name}!`);
+   200→   200→    } catch {
+   201→   201→      toast.error('Network error. Please check your connection and try again.');
+   202→   202→    } finally {
+   203→   203→      setIsSubmitting(false);
+   204→   204→    }
+   205→   205→  };
+   206→   206→
+   207→   207→  // ── Render: Portal Selection ──────────────────────────────────────
+   208→   208→  if (view === 'portal-select') {
+   209→   209→    return (
+   210→   210→      <div className="min-h-screen flex flex-col">
+   211→   211→        {/* Left Panel - Brand (desktop) */}
+   212→   212→        <div
+   213→   213→          className="hidden lg:flex lg:w-[48%] relative overflow-hidden"
+   214→   214→          style={{ background: 'linear-gradient(165deg, #0F766E 0%, #115E59 40%, #0C4A42 70%, #062D28 100%)' }}
+   215→   215→        >
+   216→   216→          {/* Decorative elements */}
+   217→   217→          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+   218→   218→            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)' }} />
+   219→   219→            <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full" style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%)' }} />
+   220→   220→            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
+   221→   221→            <div className="absolute top-1/4 right-1/4 w-40 h-40 rotate-45 rounded-lg" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(255,255,255,0.03))', border: '1px solid rgba(255,255,255,0.06)' }} />
+   222→   222→          </div>
+   223→   223→
+   224→   224→          <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 py-16 w-full">
+   225→   225→            <motion.div className="flex items-center gap-3 mb-6" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+   226→   226→              <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+   227→   227→                <Shield className="w-6 h-6 text-amber-400" />
+   228→   228→              </div>
+   229→   229→              <span className="text-white/90 text-sm font-medium tracking-wide uppercase">Arogya FinScore</span>
+   230→   230→            </motion.div>
+   231→   231→
+   232→   232→            <motion.h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}>
+   233→   233→              AI-Powered
+   234→   234→              <br />
+   235→   235→              <span className="text-amber-400">Credit Scoring</span>
+   236→   236→              <br />
+   237→   237→              for Inclusive Lending
+   238→   238→            </motion.h1>
+   239→   239→
+   240→   240→            <motion.p className="text-teal-100/80 text-base xl:text-lg max-w-md leading-relaxed mb-12" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
+   241→   241→              Enabling financial institutions to serve the unbanked with transparent, explainable AI — fully compliant with RBI guidelines.
+   242→   242→            </motion.p>
+   243→   243→
+   244→   244→            {/* Feature highlights */}
+   245→   245→            <div className="flex flex-col gap-4">
+   246→   246→              {[
+   247→   247→                { icon: Zap, title: 'Real-time AI Scoring', desc: 'XGBoost + SHAP-powered credit assessment in under 2 seconds' },
+   248→   248→                { icon: BarChart3, title: 'SHAP Explainability', desc: 'Transparent, regulatory-compliant risk factor breakdowns' },
+   249→   249→                { icon: CheckCircle2, title: 'Same-Day Sanctioning', desc: 'End-to-end digital journey from application to disbursement' },
+   250→   250→              ].map((f, i) => (
+   251→   251→                <motion.div
+   252→   252→                  key={f.title}
+   253→   253→                  className="flex items-start gap-4 rounded-2xl p-4 backdrop-blur-md"
+   254→   254→                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.06)' }}
+   255→   255→                  initial={{ opacity: 0, y: 16 }}
+   256→   256→                  animate={{ opacity: 1, y: 0 }}
+   257→   257→                  transition={{ duration: 0.5, delay: 0.3 + i * 0.12 }}
+   258→   258→                >
+   259→   259→                  <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-amber-400/15 text-amber-400">
+   260→   260→                    <f.icon className="w-5 h-5" />
+   261→   261→                  </div>
+   262→   262→                  <div>
+   263→   263→                    <h3 className="text-white font-semibold text-sm mb-0.5">{f.title}</h3>
+   264→   264→                    <p className="text-teal-100/70 text-xs leading-relaxed">{f.desc}</p>
+   265→   265→                  </div>
+   266→   266→                </motion.div>
+   267→   267→              ))}
+   268→   268→            </div>
+   269→   269→
+   270→   270→            <motion.div className="flex items-center gap-6 mt-12 pt-6 border-t border-white/8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
+   271→   271→              <div className="flex items-center gap-2">
+   272→   272→                <Users className="w-4 h-4 text-teal-100/60" />
+   273→   273→                <span className="text-teal-100/60 text-xs font-medium">2.4M+ Scores Generated</span>
+   274→   274→              </div>
+   275→   275→              <div className="flex items-center gap-2">
+   276→   276→                <Sparkles className="w-4 h-4 text-amber-400/60" />
+   277→   277→                <span className="text-teal-100/60 text-xs font-medium">99.2% Uptime</span>
+   278→   278→              </div>
+   279→   279→            </motion.div>
+   280→   280→          </div>
+   281→   281→        </div>
+   282→   282→
+   283→   283→        {/* Right Panel - Portal Selection */}
+   284→   284→        <motion.div
+   285→   285→          className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen relative"
+   286→   286→          style={{ background: 'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%)' }}
+   287→   287→          variants={staggerContainer}
+   288→   288→          initial="hidden"
+   289→   289→          animate="visible"
+   290→   290→          exit="exit"
+   291→   291→        >
+   292→   292→          <div className="w-full max-w-[600px] relative z-10">
+   293→   293→            {/* Mobile Logo */}
+   294→   294→            <motion.div className="flex flex-col items-center mb-8 lg:mb-10" variants={fadeInUp}>
+   295→   295→              <div className="flex items-center justify-center w-12 h-12 rounded-2xl mb-3" style={{ background: 'linear-gradient(135deg, #0F766E, #115E59)' }}>
+   296→   296→                <Shield className="w-7 h-7 text-amber-400" />
+   297→   297→              </div>
+   298→   298→              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Arogya FinScore</h2>
+   299→   299→              <p className="text-xs text-slate-500 mt-0.5">AI-Powered Credit Scoring for Inclusive Lending</p>
+   300→   300→            </motion.div>
+   301→   301→
+   302→   302→            {/* Header */}
+   303→   303→            <motion.div className="text-center mb-8" variants={fadeInUp}>
+   304→   304→              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Choose Your Portal</h1>
+   305→   305→              <p className="text-sm text-slate-500 mt-1.5">Select the portal that matches your role to get started</p>
+   306→   306→            </motion.div>
+   307→   307→
+   308→   308→            {/* Portal Cards */}
+   309→   309→            <div className="flex flex-col gap-4">
+   310→   310→              {PORTALS.map((portal) => {
+   311→   311→                const Icon = portal.icon;
+   312→   312→                return (
+   313→   313→                  <motion.button
+   314→   314→                    key={portal.id}
+   315→   315→                    onClick={() => handleSelectPortal(portal)}
+   316→   316→                    className="group text-left w-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-300"
+   317→   317→                    whileHover={{ y: -2, scale: 1.01 }}
+   318→   318→                    whileTap={{ scale: 0.99 }}
+   319→   319→                    variants={scaleIn}
+   320→   320→                  >
+   321→   321→                    <div className="flex items-start gap-4">
+   322→   322→                      <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl text-white shadow-md" style={{ background: portal.gradient }}>
+   323→   323→                        <Icon className="w-6 h-6" />
+   324→   324→                      </div>
+   325→   325→                      <div className="flex-1 min-w-0">
+   326→   326→                        <div className="flex items-center justify-between">
+   327→   327→                          <h3 className="text-base font-bold text-slate-900">{portal.title}</h3>
+   328→   328→                          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-1 transition-all duration-200" />
+   329→   329→                        </div>
+   330→   330→                        <p className="text-xs font-medium text-slate-500 mt-0.5">{portal.subtitle}</p>
+   331→   331→                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{portal.description}</p>
+   332→   332→                        <div className="flex flex-wrap gap-2 mt-3">
+   333→   333→                          {portal.features.map((f) => (
+   334→   334→                            <span key={f} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-medium text-slate-600">
+   335→   335→                              <CheckCircle2 className="w-3 h-3 text-teal-600" />
+   336→   336→                              {f}
+   337→   337→                            </span>
+   338→   338→                          ))}
+   339→   339→                        </div>
+   340→   340→                      </div>
+   341→   341→                    </div>
+   342→   342→                  </motion.button>
+   343→   343→                );
+   344→   344→              })}
+   345→   345→            </div>
+   346→   346→
+   347→   347→            {/* Footer */}
+   348→   348→            <motion.p className="text-center text-[11px] text-muted-foreground/60 mt-8" variants={fadeInUp}>
+   349→   349→              &copy; {new Date().getFullYear()} Arogya FinScore. All rights reserved.
+   350→   350→              <span className="mx-1.5">&bull;</span>
+   351→   351→              <span className="cursor-pointer hover:text-foreground transition-colors">Privacy Policy</span>
+   352→   352→              <span className="mx-1.5">&bull;</span>
+   353→   353→              <span className="cursor-pointer hover:text-foreground transition-colors">Terms</span>
+   354→   354→            </motion.p>
+   355→   355→          </div>
+   356→   356→        </motion.div>
+   357→   357→      </div>
+   358→   358→    );
+   359→   359→  }
+   360→   360→
+   361→   361→  // ── Render: Auth Form (Sign In / Sign Up) ──────────────────────────
+   362→   362→  return (
+   363→   363→    <div className="min-h-screen flex flex-col">
+   364→   364→      {/* Left Panel - Brand (desktop) */}
+   365→   365→      <div
+   366→   366→        className="hidden lg:flex lg:w-[48%] relative overflow-hidden"
+   367→   367→        style={{ background: selectedPortal?.gradient || 'linear-gradient(165deg, #0F766E 0%, #062D28 100%)' }}
+   368→   368→      >
+   369→   369→        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+   370→   370→          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
+   371→   371→          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)' }} />
+   372→   372→          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
+   373→   373→        </div>
+   374→   374→
+   375→   375→        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 py-16 w-full">
+   376→   376→          <motion.div className="flex items-center gap-3 mb-6" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+   377→   377→            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+   378→   378→              <Shield className="w-6 h-6 text-white" />
+   379→   379→            </div>
+   380→   380→            <span className="text-white/90 text-sm font-medium tracking-wide uppercase">Arogya FinScore</span>
+   381→   381→          </motion.div>
+   382→   382→
+   383→   383→          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+   384→   384→            <div className="flex items-center gap-2 mb-4">
+   385→   385→              {selectedPortal && <selectedPortal.icon className="w-6 h-6 text-white/80" />}
+   386→   386→              <span className="text-white/70 text-sm font-medium uppercase tracking-wider">{selectedPortal?.title}</span>
+   387→   387→            </div>
+   388→   388→            <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-4">
+   389→   389→              {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
+   390→   390→            </h1>
+   391→   391→            <p className="text-white/60 text-base max-w-md leading-relaxed">
+   392→   392→              {authMode === 'signin'
+   393→   393→                ? 'Sign in to access your portal and continue where you left off.'
+   394→   394→                : `Join the ${selectedPortal?.title || 'platform'} and get started today.`}
+   395→   395→            </p>
+   396→   396→          </motion.div>
+   397→   397→
+   398→   398→          {selectedPortal && (
+   399→   399→            <motion.div className="mt-10 flex flex-col gap-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+   400→   400→              {selectedPortal.features.map((f) => (
+   401→   401→                <div key={f} className="flex items-center gap-3 text-white/70 text-sm">
+   402→   402→                  <CheckCircle2 className="w-4 h-4 text-white/50 flex-shrink-0" />
+   403→   403→                  {f}
+   404→   404→                </div>
+   405→   405→              ))}
+   406→   406→            </motion.div>
+   407→   407→          )}
+   408→   408→        </div>
+   409→   409→      </div>
+   410→   410→
+   411→   411→      {/* Right Panel - Auth Form */}
+   412→   412→      <motion.div
+   413→   413→        className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-12 py-12 lg:py-0 min-h-screen"
+   414→   414→        style={{ background: 'linear-gradient(180deg, #F8FAFB 0%, #F1F5F9 100%)' }}
+   415→   415→        initial={{ opacity: 0 }}
+   416→   416→        animate={{ opacity: 1 }}
+   417→   417→        transition={{ duration: 0.3 }}
+   418→   418→      >
+   419→   419→        <div className="w-full max-w-[420px] relative z-10">
+   420→   420→          {/* Mobile Logo + Back Button */}
+   421→   421→          <motion.div className="flex flex-col items-center mb-6 lg:mb-8" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+   422→   422→            <div className="lg:hidden flex items-center justify-center w-12 h-12 rounded-2xl mb-3" style={{ background: selectedPortal?.gradient || 'linear-gradient(135deg, #0F766E, #115E59)' }}>
+   423→   423→              <Shield className="w-7 h-7 text-white" />
+   424→   424→            </div>
+   425→   425→            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Arogya FinScore</h2>
+   426→   426→            <p className="text-xs text-slate-500 mt-0.5">{selectedPortal?.title}</p>
+   427→   427→          </motion.div>
+   428→   428→
+   429→   429→          {/* Back Button */}
+   430→   430→          <motion.div className="mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+   431→   431→            <button
+   432→   432→              onClick={handleBack}
+   433→   433→              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+   434→   434→            >
+   435→   435→              <ArrowLeft className="w-4 h-4" />
+   436→   436→              Back to Portals
+   437→   437→            </button>
+   438→   438→          </motion.div>
+   439→   439→
+   440→   440→          {/* Auth Card */}
+   441→   441→          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+   442→   442→            <Card className="border-0 shadow-xl shadow-slate-900/[0.04] rounded-2xl overflow-hidden relative">
+   443→   443→              <div className="h-1.5" style={{ background: selectedPortal?.gradient || 'linear-gradient(90deg, #0F766E 0%, #14B8A6 50%, #F59E0B 100%)' }} />
+   444→   444→
+   445→   445→              <CardHeader className="pb-2 pt-6 px-6 sm:px-8">
+   446→   446→                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+   447→   447→                  {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+   448→   448→                </h1>
+   449→   449→                <p className="text-sm text-slate-500 mt-1">
+   450→   450→                  {authMode === 'signin'
+   451→   451→                    ? `Enter your credentials to access the ${selectedPortal?.title || 'portal'}`
+   452→   452→                    : `Fill in your details to join the ${selectedPortal?.title || 'portal'}`}
+   453→   453→                </p>
+   454→   454→              </CardHeader>
+   455→   455→
+   456→   456→              <CardContent className="px-6 sm:px-8 pb-8">
+   457→   457→                <AnimatePresence mode="wait">
+   458→   458→                  {/* ── Sign In Form ──────────────────────────────── */}
+   459→   459→                  {authMode === 'signin' && (
+   460→   460→                    <motion.form
+   461→   461→                      key="signin"
+   462→   462→                      onSubmit={signinForm.handleSubmit(onSignin)}
+   463→   463→                      className="space-y-5"
+   464→   464→                      initial={{ opacity: 0, x: -20 }}
+   465→   465→                      animate={{ opacity: 1, x: 0 }}
+   466→   466→                      exit={{ opacity: 0, x: 20 }}
+   467→   467→                      transition={{ duration: 0.25 }}
+   468→   468→                      noValidate
+   469→   469→                    >
+   470→   470→                      <div className="space-y-2">
+   471→   471→                        <Label htmlFor="signin-email" className="text-sm font-medium text-slate-700">Email address</Label>
+   472→   472→                        <div className="relative">
+   473→   473→                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   474→   474→                          <Input id="signin-email" type="email" placeholder="you@example.com" autoComplete="email" className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signinForm.register('email')} />
+   475→   475→                        </div>
+   476→   476→                        <AnimatePresence mode="wait">
+   477→   477→                          {signinForm.formState.errors.email && (
+   478→   478→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signinForm.formState.errors.email.message}</motion.p>
+   479→   479→                          )}
+   480→   480→                        </AnimatePresence>
+   481→   481→                      </div>
+   482→   482→
+   483→   483→                      <div className="space-y-2">
+   484→   484→                        <div className="flex items-center justify-between">
+   485→   485→                          <Label htmlFor="signin-password" className="text-sm font-medium text-slate-700">Password</Label>
+   486→   486→                        </div>
+   487→   487→                        <div className="relative">
+   488→   488→                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   489→   489→                          <Input id="signin-password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" autoComplete="current-password" className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signinForm.register('password')} />
+   490→   490→                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none" aria-label={showPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
+   491→   491→                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+   492→   492→                          </button>
+   493→   493→                        </div>
+   494→   494→                        <AnimatePresence mode="wait">
+   495→   495→                          {signinForm.formState.errors.password && (
+   496→   496→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signinForm.formState.errors.password.message}</motion.p>
+   497→   497→                          )}
+   498→   498→                        </AnimatePresence>
+   499→   499→                      </div>
+   500→   500→
+   501→   501→                      <Button type="submit" disabled={isSubmitting} className="w-full h-11 rounded-xl text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300" style={{ background: selectedPortal?.gradient || 'linear-gradient(135deg, #0F766E 0%, #115E59 100%)' }}>
+   502→   502→                        <AnimatePresence mode="wait">
+   503→   503→                          {isSubmitting ? (
+   504→   504→                            <motion.span key="loading" className="flex items-center gap-2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+   505→   505→                              <Loader2 className="w-4 h-4 animate-spin" />
+   506→   506→                              Signing in...
+   507→   507→                            </motion.span>
+   508→   508→                          ) : (
+   509→   509→                            <motion.span key="idle" className="flex items-center gap-2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+   510→   510→                              <LogIn className="w-4 h-4" />
+   511→   511→                              Sign In
+   512→   512→                              <ArrowRight className="w-4 h-4" />
+   513→   513→                            </motion.span>
+   514→   514→                          )}
+   515→   515→                        </AnimatePresence>
+   516→   516→                      </Button>
+   517→   517→
+   518→   518→                      <div className="relative my-4">
+   519→   519→                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+   520→   520→                        <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-slate-400">or</span></div>
+   521→   521→                      </div>
+   522→   522→
+   523→   523→                      <Button type="button" variant="outline" className="w-full h-11 rounded-xl text-sm font-medium border-slate-200" onClick={() => { setAuthMode('signup'); signupForm.reset(); }}>
+   524→   524→                        <UserPlus className="w-4 h-4 mr-2" />
+   525→   525→                        Create a new account
+   526→   526→                      </Button>
+   527→   527→                    </motion.form>
+   528→   528→                  )}
+   529→   529→
+   530→   530→                  {/* ── Sign Up Form ──────────────────────────────── */}
+   531→   531→                  {authMode === 'signup' && (
+   532→   532→                    <motion.form
+   533→   533→                      key="signup"
+   534→   534→                      onSubmit={signupForm.handleSubmit(onSignup)}
+   535→   535→                      className="space-y-5"
+   536→   536→                      initial={{ opacity: 0, x: 20 }}
+   537→   537→                      animate={{ opacity: 1, x: 0 }}
+   538→   538→                      exit={{ opacity: 0, x: -20 }}
+   539→   539→                      transition={{ duration: 0.25 }}
+   540→   540→                      noValidate
+   541→   541→                    >
+   542→   542→                      <div className="space-y-2">
+   543→   543→                        <Label htmlFor="signup-name" className="text-sm font-medium text-slate-700">Full Name</Label>
+   544→   544→                        <div className="relative">
+   545→   545→                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   546→   546→                          <Input id="signup-name" type="text" placeholder="Enter your full name" autoComplete="name" className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signupForm.register('name')} />
+   547→   547→                        </div>
+   548→   548→                        <AnimatePresence mode="wait">
+   549→   549→                          {signupForm.formState.errors.name && (
+   550→   550→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signupForm.formState.errors.name.message}</motion.p>
+   551→   551→                          )}
+   552→   552→                        </AnimatePresence>
+   553→   553→                      </div>
+   554→   554→
+   555→   555→                      <div className="space-y-2">
+   556→   556→                        <Label htmlFor="signup-email" className="text-sm font-medium text-slate-700">Email address</Label>
+   557→   557→                        <div className="relative">
+   558→   558→                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   559→   559→                          <Input id="signup-email" type="email" placeholder="you@example.com" autoComplete="email" className="pl-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signupForm.register('email')} />
+   560→   560→                        </div>
+   561→   561→                        <AnimatePresence mode="wait">
+   562→   562→                          {signupForm.formState.errors.email && (
+   563→   563→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signupForm.formState.errors.email.message}</motion.p>
+   564→   564→                          )}
+   565→   565→                        </AnimatePresence>
+   566→   566→                      </div>
+   567→   567→
+   568→   568→                      <div className="space-y-2">
+   569→   569→                        <Label htmlFor="signup-password" className="text-sm font-medium text-slate-700">Password</Label>
+   570→   570→                        <div className="relative">
+   571→   571→                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   572→   572→                          <Input id="signup-password" type={showPassword ? 'text' : 'password'} placeholder="Create a strong password" autoComplete="new-password" className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signupForm.register('password')} />
+   573→   573→                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none" aria-label={showPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
+   574→   574→                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+   575→   575→                          </button>
+   576→   576→                        </div>
+   577→   577→                        <AnimatePresence mode="wait">
+   578→   578→                          {signupForm.formState.errors.password && (
+   579→   579→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signupForm.formState.errors.password.message}</motion.p>
+   580→   580→                          )}
+   581→   581→                        </AnimatePresence>
+   582→   582→                      </div>
+   583→   583→
+   584→   584→                      <div className="space-y-2">
+   585→   585→                        <Label htmlFor="signup-confirm" className="text-sm font-medium text-slate-700">Confirm Password</Label>
+   586→   586→                        <div className="relative">
+   587→   587→                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+   588→   588→                          <Input id="signup-confirm" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your password" autoComplete="new-password" className="pl-10 pr-10 h-11 rounded-xl bg-slate-50/80 border-slate-200/80 focus-visible:ring-teal-600/30 focus-visible:border-teal-600/50 text-sm" {...signupForm.register('confirmPassword')} />
+   589→   589→                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none" aria-label={showConfirmPassword ? 'Hide password' : 'Show password'} tabIndex={-1}>
+   590→   590→                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+   591→   591→                          </button>
+   592→   592→                        </div>
+   593→   593→                        <AnimatePresence mode="wait">
+   594→   594→                          {signupForm.formState.errors.confirmPassword && (
+   595→   595→                            <motion.p className="text-xs text-red-500" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>{signupForm.formState.errors.confirmPassword.message}</motion.p>
+   596→   596→                          )}
+   597→   597→                        </AnimatePresence>
+   598→   598→                      </div>
+   599→   599→
+   600→   600→                      {/* Selected portal indicator */}
+   601→   601→                      <div className="rounded-xl bg-muted/60 border border-border/60 p-3">
+   602→   602→                        <p className="text-xs font-medium text-muted-foreground mb-1">Registering as:</p>
+   603→   603→                        <div className="flex items-center gap-2">
+   604→   604→                          {selectedPortal && <selectedPortal.icon className="w-4 h-4 text-primary" />}
+   605→   605→                          <span className="text-sm font-semibold text-slate-900">{selectedPortal?.title}</span>
+   606→   606→                          <span className="text-xs text-muted-foreground">— {selectedPortal?.subtitle}</span>
+   607→   607→                        </div>
+   608→   608→                      </div>
+   609→   609→
+   610→   610→                      <Button type="submit" disabled={isSubmitting} className="w-full h-11 rounded-xl text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300" style={{ background: selectedPortal?.gradient || 'linear-gradient(135deg, #0F766E 0%, #115E59 100%)' }}>
+   611→   611→                        <AnimatePresence mode="wait">
+   612→   612→                          {isSubmitting ? (
+   613→   613→                            <motion.span key="loading" className="flex items-center gap-2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+   614→   614→                              <Loader2 className="w-4 h-4 animate-spin" />
+   615→   615→                              Creating account...
+   616→   616→                            </motion.span>
+   617→   617→                          ) : (
+   618→   618→                            <motion.span key="idle" className="flex items-center gap-2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+   619→   619→                              <UserPlus className="w-4 h-4" />
+   620→   620→                              Create Account
+   621→   621→                              <ArrowRight className="w-4 h-4" />
+   622→   622→                            </motion.span>
+   623→   623→                          )}
+   624→   624→                        </AnimatePresence>
+   625→   625→                      </Button>
+   626→   626→
+   627→   627→                      <div className="relative my-4">
+   628→   628→                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+   629→   629→                        <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-slate-400">or</span></div>
+   630→   630→                      </div>
+   631→   631→
+   632→   632→                      <Button type="button" variant="outline" className="w-full h-11 rounded-xl text-sm font-medium border-slate-200" onClick={() => { setAuthMode('signin'); signinForm.reset(); }}>
+   633→   633→                        <LogIn className="w-4 h-4 mr-2" />
+   634→   634→                        Already have an account? Sign In
+   635→   635→                      </Button>
+   636→   636→                    </motion.form>
+   637→   637→                  )}
+   638→   638→                </AnimatePresence>
+   639→   639→
+   640→   640→                {/* Security Footer */}
+   641→   641→                <div className="mt-6 flex items-center justify-center gap-3">
+   642→   642→                  <div className="flex items-center gap-1.5 text-slate-400">
+   643→   643→                    <Lock className="w-3 h-3" />
+   644→   644→                    <span className="text-[11px] font-medium">256-bit encryption</span>
+   645→   645→                  </div>
+   646→   646→                  <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 border border-teal-600/20 bg-teal-600/5 rounded-md px-2 py-0.5">
+   647→   647→                    RBI Compliant
+   648→   648→                  </span>
+   649→   649→                </div>
+   650→   650→              </CardContent>
+   651→   651→            </Card>
+   652→   652→          </motion.div>
+   653→   653→
+   654→   654→          {/* Bottom Copyright */}
+   655→   655→          <motion.p className="text-center text-[11px] text-muted-foreground/60 mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+   656→   656→            &copy; {new Date().getFullYear()} Arogya FinScore. All rights reserved.
+   657→   657→            <span className="mx-1.5">&bull;</span>
+   658→   658→            <span className="cursor-pointer hover:text-foreground transition-colors">Privacy Policy</span>
+   659→   659→            <span className="mx-1.5">&bull;</span>
+   660→   660→            <span className="cursor-pointer hover:text-foreground transition-colors">Terms</span>
+   661→   661→          </motion.p>
+   662→   662→        </div>
+   663→   663→      </motion.div>
+   664→   664→    </div>
+   665→   665→  );
+   666→   666→}
+   667→   667→
