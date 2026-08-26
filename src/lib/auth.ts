@@ -57,7 +57,7 @@ export async function verifyToken(token: string): Promise<SessionPayload | null>
 }
 
 export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
-  const user = await db.user.findUnique({ where: { email } });
+  const user = await db.user.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (!user || !user.isActive) return null;
 
   const isValid = await verifyPassword(password, user.passwordHash);

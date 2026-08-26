@@ -2,7 +2,7 @@
 // Arogya FinScore - Database Seed Script
 // ═══════════════════════════════════════════════════════════════
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User, ChannelPartner, Beneficiary, LoanApplication } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -155,7 +155,7 @@ async function main() {
   console.log('  ✅ Cleared existing data');
   
   // 1. Create Users
-  const users = [];
+  const users: User[] = [];
   for (const u of USERS) {
     const hash = await bcrypt.hash(u.password, 12);
     const user = await prisma.user.create({
@@ -173,7 +173,7 @@ async function main() {
   console.log(`  ✅ Created ${users.length} users`);
   
   // 2. Create Channel Partners
-  const partners = [];
+  const partners: ChannelPartner[] = [];
   for (const p of PARTNERS) {
     const partner = await prisma.channelPartner.create({
       data: { ...p, isActive: true, totalReferrals: randomBetween(5, 50) },
@@ -183,7 +183,7 @@ async function main() {
   console.log(`  ✅ Created ${partners.length} channel partners`);
   
   // 3. Create Beneficiaries
-  const beneficiaries = [];
+  const beneficiaries: Beneficiary[] = [];
   for (let i = 0; i < 80; i++) {
     const state = randomFrom(STATES);
     const district = randomFrom(DISTRICTS[state] || [state]);
@@ -236,7 +236,7 @@ async function main() {
   console.log(`  ✅ Created ${beneficiaries.length} beneficiaries`);
   
   // 4. Create Loan Applications with Scores
-  const applications = [];
+  const applications: LoanApplication[] = [];
   const statusWeights: Record<string, number> = {
     'disbursed': 25, 'approved': 15, 'sanctioned': 10, 'closed': 12,
     'under_review': 10, 'scoring': 8, 'submitted': 8,
@@ -377,7 +377,7 @@ async function main() {
     const types = ['electricity', 'mobile', 'dth', 'gas', 'water'];
     for (const type of types.slice(0, randomBetween(2, 5))) {
       const months = randomBetween(6, 12);
-      const payments = [];
+      const payments: { month: string; amount: number; paidOnTime: boolean }[] = [];
       for (let m = 0; m < months; m++) {
         payments.push({
           month: `2024-${String(m + 1).padStart(2, '0')}`,

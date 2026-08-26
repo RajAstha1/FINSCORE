@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     // Auto-score the application
     const features = generateFeaturesFromData({
       age: beneficiary.dateOfBirth ? Math.floor((Date.now() - beneficiary.dateOfBirth.getTime()) / 31557600000) : 35,
-      monthlyIncome: monthlyIncome,
+      monthlyIncome: monthlyIncome ?? undefined,
       loanAmount: loanAmount,
       loanTenure: loanTenure,
       state: beneficiary.state || undefined,

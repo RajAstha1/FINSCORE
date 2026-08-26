@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         where: { id: effectivePartnerId },
         include: {
           beneficiaries: {
-            select: { id: true, name: true, state: true, category: true, createdAt: true },
+            select: { id: true, aadhaarName: true, state: true, category: true, createdAt: true },
             take: 5,
             orderBy: { createdAt: 'desc' },
           },
@@ -43,6 +43,15 @@ export async function GET(request: NextRequest) {
       if (!partner) {
         return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
       }
+
+      // Expose beneficiary names under `name` for API consumers
+      const partnerWithNames = {
+        ...partner,
+        beneficiaries: partner.beneficiaries.map(({ aadhaarName, ...rest }) => ({
+          ...rest,
+          name: aadhaarName,
+        })),
+      };
 
       // Fetch referrals (beneficiaries linked to this partner)
       const [referrals, totalReferrals] = await Promise.all([

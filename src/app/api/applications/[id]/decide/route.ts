@@ -97,7 +97,7 @@ export async function POST(
     // Create repayment schedule for approved applications
     if (decisionType === 'auto_approve' && approvedAmount && approvedTenure) {
       const emi = Math.round((approvedAmount * (1 + ((approvedRate || 8.5) / 100) * (approvedTenure / 12))) / approvedTenure);
-      const repayments = [];
+      const repayments: { applicationId: string; emiNumber: number; dueDate: Date; dueAmount: number; status: string }[] = [];
       for (let i = 1; i <= approvedTenure; i++) {
         const dueDate = new Date();
         dueDate.setMonth(dueDate.getMonth() + i);

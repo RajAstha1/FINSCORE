@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
+import type { ConsumptionData } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +39,7 @@ export async function GET(
     }
 
     // Fetch consumption data separately (linked to beneficiary)
-    let consumptionData = [];
+    let consumptionData: ConsumptionData[] = [];
     if (application.beneficiaryId) {
       consumptionData = await db.consumptionData.findMany({
         where: { beneficiaryId: application.beneficiaryId },

@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/components/shared/query-provider";
-import "./globals.css";
 import { Toaster } from "sonner";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +18,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Arogya FinScore - AI-Powered Credit Scoring",
-  description: "Enterprise-grade AI credit scoring and digital lending platform for under-served beneficiaries. NBCFDC-compliant, real-time scoring with SHAP explainability.",
-  icons: { icon: "/logo.svg" },
+  description:
+    "Enterprise-grade AI credit scoring and digital lending platform for under-served beneficiaries. NBCFDC-compliant, real-time scoring with SHAP explainability.",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -35,13 +38,17 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
-          enableSystem
+          enableSystem={false}
           disableTransitionOnChange
         >
           <QueryProvider>
             <TooltipProvider delayDuration={200}>
               {children}
-              <Toaster position="top-right" richColors closeButton />
+              <Toaster
+                position="top-right"
+                richColors
+                closeButton
+              />
             </TooltipProvider>
           </QueryProvider>
         </ThemeProvider>
